@@ -9,8 +9,8 @@ class SentimentClassifier(object):
     def __init__(self, input_placeholder, labels_placeholder, embed_dim, batch_size, num_classes):
         '''
         Args:
-            input_placeholder: (batch_size x input_dim) Tensorflow placeholder to store the inputs.
-            labels_placeholder: (batchsize) Tensorflow placeholder to store the labels.
+            input_placeholder: (batch_size x embed_dim) Tensorflow placeholder to store the inputs.
+            labels_placeholder: (batch_size) Tensorflow placeholder to store the labels.
             embed_dim (int): The dimensionality of the embedding/input
             batch_size (int): The batch size
             num_classes (int): Number of output classes

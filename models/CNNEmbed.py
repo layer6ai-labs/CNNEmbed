@@ -8,7 +8,7 @@ class CNNEmbed(object):
     '''
 
     def __init__(self, input_data, target_embeddings, target_labels, keep_prob, max_doc_len=400, embed_dim=300,
-                 num_layers=4, num_filters=100, residual_skip=2, k_max=False):
+                 num_layers=4, num_filters=900, residual_skip=2, k_max=False):
         '''
         Create a CNN for learning document embeddings.
 
@@ -68,7 +68,7 @@ class CNNEmbed(object):
                     conv_w += res_input
                     conv_v += res_input
 
-                # Adding the gatting.
+                # Adding the gating.
                 gated_conv = tf.multiply(conv_w, tf.sigmoid(conv_v))
 
                 # Dropout layer
