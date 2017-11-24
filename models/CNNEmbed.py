@@ -8,7 +8,7 @@ class CNNEmbed(object):
     '''
 
     def __init__(self, input_data, target_embeddings, target_labels, keep_prob, max_doc_len=400, embed_dim=300,
-                 num_layers=4, num_filters=900, residual_skip=2, k_max=False):
+                 num_layers=4, num_filters=900, residual_skip=2, k_max=0):
         '''
         Create a CNN for learning document embeddings.
 
@@ -84,7 +84,7 @@ class CNNEmbed(object):
         with tf.variable_scope('fully_connected'):
             if self.k_max:
                 # If we're doing k-max pooling
-                output = tf.nn.top_k(tf.transpose(prev_layer, [0, 1, 3, 2]), 3)[0]
+                output = tf.nn.top_k(tf.transpose(prev_layer, [0, 1, 3, 2]), self.k_max)[0]
                 output = tf.reshape(output, [-1, 3 * self.num_filters])
                 weights = tf.get_variable(name='weights', shape=[3 * self.num_filters, self.embed_dim],
                                           dtype=tf.float32,
