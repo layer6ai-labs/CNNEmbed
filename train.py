@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 from preprocess import *
 from util import *
+import pdb
 
 if __name__ == '__main__':
 
@@ -19,18 +20,17 @@ if __name__ == '__main__':
     parser.add_argument('--num-negative-words', type=int, help='Number of negative samples.')
     parser.add_argument('--num-residual', type=int, default=-1, help='Number of layers to skip in residual connections.')
     parser.add_argument('--num-classes', type=int, default=2, help='Number of classes in the classifier (2 or 5).')
-    parser.add_argument('--dynamic', action='store_true', help='Make the word embeddings trainable.')
     parser.add_argument('--dropout-keep-prob', type=float, default=0.8, help='The dropout keep prob.')
     parser.add_argument('--preprocessing', action='store_true', help='If redo the pre-processing. If set as False, the '
                                                                      'the program would try to load saved pre-processed'
                                                                      'files.')
-    parser.add_argument('--cache-dir', type='str', default='./cache', help='The directory for saved pre-processed and'
+    parser.add_argument('--cache-dir', type=str, default='./cache', help='The directory for saved pre-processed and'
                                                                            'embedding files')
-    parser.add_argument('--dataset', type='str',required=True, help='Name of the dataset the model is training on.'
+    parser.add_argument('--dataset', type=str,required=True, help='Name of the dataset the model is training on.'
                                                                     'Either amazon or imdb.')
-    parser.add_argument('--data-dir', type='str', default='/home/chundi/L6/Data/', help='Data directory.')
-    parser.add_argument('--checkpoint-dir', type='str', default='./latest_model/', help='Checkpoints directory.')
-    parser.add_argument('--model', type='str', default='CNN_pad',help='The model to use. Can be CNN_pad, CNN_pool or CNN_topk')
+    parser.add_argument('--data-dir', type=str, default='/home/chundi/L6/Data/', help='Data directory.')
+    parser.add_argument('--checkpoint-dir', type=str, default='./latest_model/', help='Checkpoints directory.')
+    parser.add_argument('--model', type=str, default='CNN_pad',help='The model to use. Can be CNN_pad, CNN_pool or CNN_topk')
 
     args = parser.parse_args()
 
@@ -41,7 +41,6 @@ if __name__ == '__main__':
     pos_words_num = args.num_positive_words
     neg_words_num = args.num_negative_words
     num_residual = args.num_residual
-    dynamic = args.dynamic
     keep_prob = args.dropout_keep_prob
     data_dir = args.data_dir
     checkpoint_path = args.checkpoint_dir
@@ -79,7 +78,7 @@ if __name__ == '__main__':
         test_labels = np.load(test_labels_fn)
     else:
         # Preprocess data
-        if argparse.dataset == 'imdb':
+        if args.dataset == 'imdb':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_imdb(data_dir, max_doc_len, fixed_length)
         else: #argparse.dataset == 'amazon':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_amazon(data_dir, max_doc_len, fixed_length)
@@ -105,16 +104,20 @@ if __name__ == '__main__':
         train_labels_sup = train_labels_sup > split_class
         test_labels_sup = test_labels_sup > split_class
     elif args.num_classes == 5:
-        if argparse.dataset == 'imdb':
+        if args.dataset == 'imdb':
             print("Imdb dataset only supports binary classification!")
             sys.exit()
         if fixed_length:
             train_data_indices_sup = pad_zeros(train_data_indices, vector_up.shape[0] - 1, max_doc_len)
             test_data_indices_sup = pad_zeros(test_data_indices, vector_up.shape[0] - 1, max_doc_len)
+        else:
+            train_data_indices_sup = np.copy(train_data_indices)
+            test_data_indices_sup = np.copy(test_data_indices)
         train_labels_sup = np.copy(train_labels)
         test_labels_sup = np.copy(test_labels)
     else:
         print("Number of classes has to be 2 or 5!")
         sys.exit()
-
+    pdb.set_trace()
+    pass
     print "all of our inputs would follow NHWC _batch_height_width_channel_"

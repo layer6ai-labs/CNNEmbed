@@ -129,7 +129,7 @@ def get_data_imdb(data_path, max_doc_len, fixed_length=True):
     #Convert list to np array
     train_data_indices = np.array(train_data_indices)
     train_labels = np.array(train_labels)
-    test_data_indices = np.array(train_data_indices)
+    test_data_indices = np.array(test_data_indices)
     test_labels = np.array(test_labels)
 
     return input_embeddings, train_data_indices, train_labels, test_data_indices, test_labels
