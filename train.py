@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 from preprocess import *
+from util import *
 
 if __name__ == '__main__':
 
@@ -47,12 +48,16 @@ if __name__ == '__main__':
 
     if args.dataset == 'imdb':
         max_doc_len = 400
-    else:
+        split_class = 7
+        unlabeled_class = 0
+    else: #argparse.dataset == 'amazon':
         max_doc_len = 200
+        split_class = 2
+        unlabeled_class = 2
 
     if args.model == 'CNN_pad':
         fixed_length = True
-    else:
+    else: #argparse.dataset == 'pool or topk':
         fixed_length = False
 
 
@@ -76,8 +81,8 @@ if __name__ == '__main__':
         # Preprocess data
         if argparse.dataset == 'imdb':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_imdb(data_dir, max_doc_len, fixed_length)
-        else:
-            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_dataX_amazon(data_dir, max_doc_len, fixed_length)
+        else: #argparse.dataset == 'amazon':
+            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_amazon(data_dir, max_doc_len, fixed_length)
         np.save(vector_up_fn, vector_up)
         np.save(train_data_inds_fn, train_data_indices)
         np.save(train_labels_fn, train_labels)
@@ -88,19 +93,24 @@ if __name__ == '__main__':
     test_labels = test_labels.reshape([test_labels.shape[0]])
     # Get the supervised test data
     if args.num_classes == 2:
-        I = train_labels != 2
-        J = test_labels != 2
+        I = train_labels != unlabeled_class
+        J = test_labels != unlabeled_class
         train_data_indices_sup = train_data_indices[I]
         test_data_indices_sup = test_data_indices[J]
-        train_data_indices_sup = pad_zeros(train_data_indices_sup, vector_up.shape[0] - 1)
-        test_data_indices_sup = pad_zeros(test_data_indices_sup, vector_up.shape[0] - 1)
+        if fixed_length:
+            train_data_indices_sup = pad_zeros(train_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
         train_labels_sup = train_labels[I]
         test_labels_sup = test_labels[J]
-        train_labels_sup = train_labels_sup > 2
-        test_labels_sup = test_labels_sup > 2
+        train_labels_sup = train_labels_sup > split_class
+        test_labels_sup = test_labels_sup > split_class
     elif args.num_classes == 5:
-        train_data_indices_sup = pad_zeros(train_data_indices, vector_up.shape[0] - 1)
-        test_data_indices_sup = pad_zeros(test_data_indices, vector_up.shape[0] - 1)
+        if argparse.dataset == 'imdb':
+            print("Imdb dataset only supports binary classification!")
+            sys.exit()
+        if fixed_length:
+            train_data_indices_sup = pad_zeros(train_data_indices, vector_up.shape[0] - 1, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices, vector_up.shape[0] - 1, max_doc_len)
         train_labels_sup = np.copy(train_labels)
         test_labels_sup = np.copy(test_labels)
     else:
