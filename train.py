@@ -11,6 +11,9 @@ import pdb
 from models.CNNEmbed import  CNNEmbed
 from models.SentimentClassifier import  SentimentClassifier
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
 if __name__ == '__main__':
 
     # command line tools for specifying the hyper-parameters only.
@@ -132,7 +135,7 @@ if __name__ == '__main__':
         keep_prob_placeholder = tf.placeholder(dtype=tf.float32, name='dropout_rate')
 
         # build model
-        _docCNN = CNNEmbed(input, targets_embeds, target_place_holder, keep_prob_placeholder, max_doc_len, embed_dim,
+        _docCNN = CNNEmbed(inputs, targets_embeds, target_place_holder, keep_prob_placeholder, max_doc_len, embed_dim,
                  num_layers, num_filters, num_residual, k_max)
 
         global_step = tf.Variable(0, trainable=False)
@@ -140,7 +143,7 @@ if __name__ == '__main__':
         loss = _docCNN.loss()
 
         # input of the test (supervised learning) process
-        test_obj_cal_output = tf.transpose(_docCNN.res, [0, 1, 3, 2])
+        test_obj_cal_output = tf.squeeze(_docCNN.res)
 
         # setting the learning rate
         #Not using learning rate decay
@@ -157,7 +160,7 @@ if __name__ == '__main__':
     ###########################################Classifier Graph######################################
     classifier_graph = tf.Graph()
     with classifier_graph.as_default(), tf.device('/gpu:0'):
-        classifier_data_place_holder = tf.placeholder(tf.float32, [batch_size, 1, embed_dim, 1],
+        classifier_data_place_holder = tf.placeholder(tf.float32, [batch_size, embed_dim],
                                                       name="classifier_place_holder")
         classifier_label_place_holder = tf.placeholder(tf.float32, [batch_size])
         # Creating the classifier object.
@@ -210,6 +213,10 @@ if __name__ == '__main__':
 
             training_func(sess_docCNN, train_op, data_inds, target_inds, BATCH_TARGET, placeholders, keep_prob)
 
+            # Add batches to the queue
+            batch_generator.add_to_queue()
+            train_times.append(time.time() - t1)
+
             if i % 100 == 0:
                 feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
                              target_place_holder: BATCH_TARGET, keep_prob_placeholder: 1}
@@ -228,8 +235,8 @@ if __name__ == '__main__':
             sess_classifier.run(train_init_op_classifier)
             dataSize = len(train_data_indices_sup)
 
-            train_data_doc2vec_sup = np.zeros([dataSize, 1, embed_dim, 1])
-            test_data_doc2vec_sup = np.zeros([dataSize, 1, embed_dim, 1])
+            train_data_doc2vec_sup = np.zeros([dataSize, embed_dim])
+            test_data_doc2vec_sup = np.zeros([dataSize, embed_dim])
 
             for i in range(dataSize):
                 classifier_train_inds = np.expand_dims(train_data_indices_sup[i], axis=0)
@@ -237,11 +244,11 @@ if __name__ == '__main__':
 
                 feed_dict_train = {indices_data_placeholder: classifier_train_inds, keep_prob_placeholder: 1}
                 train_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_train)
-                train_data_doc2vec_sup[i, :, :, :] = train_doc2vec
+                train_data_doc2vec_sup[i, :] = train_doc2vec
 
                 feed_dict_test = {indices_data_placeholder: classifier_test_data, keep_prob_placeholder: 1}
                 test_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_test)
-                test_data_doc2vec_sup[i, :, :, :] = test_doc2vec
+                test_data_doc2vec_sup[i, :] = test_doc2vec
 
             acc_test_best = 0
 
