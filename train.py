@@ -12,7 +12,7 @@ from models.CNNEmbed import  CNNEmbed
 from models.SentimentClassifier import  SentimentClassifier
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 if __name__ == '__main__':
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         unlabeled_class = 0
     else: #argparse.dataset == 'amazon':
         max_doc_len = 200
-        split_class = 2
+        split_class = 3
         unlabeled_class = 2
 
     if args.model == 'CNN_pad':
@@ -111,7 +111,6 @@ if __name__ == '__main__':
     train_data_indices_sup, test_data_indices_sup, \
     train_labels_sup, test_labels_sup = get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels,
                  unlabeled_class, split_class, fixed_length, max_doc_len, args.num_classes)
-
     #Build the model graph
     print("all of our inputs would follow NHWC _batch_height_width_channel_")
     ###########################################Embedding learning Graph#########################################
@@ -264,7 +263,7 @@ if __name__ == '__main__':
                     index = classifier_shuffle_index[
                         np.arange(i * batch_size, min((i + 1) * batch_size, classifier_dataSize))]
 
-                    classifier_train_inds = train_data_doc2vec_sup[index, :, :, :]
+                    classifier_train_inds = train_data_doc2vec_sup[index, :]
                     classifier_train_labels = train_labels_sup[index]
 
                     feed_dict_train = {classifier_data_place_holder: classifier_train_inds,
@@ -279,7 +278,7 @@ if __name__ == '__main__':
                     index = classifier_shuffle_index[
                         np.arange(i * batch_size, min((i + 1) * batch_size, classifier_dataSize))]
 
-                    classifier_test_data = test_data_doc2vec_sup[index, :, :, :]
+                    classifier_test_data = test_data_doc2vec_sup[index, :]
                     classifier_test_labels = test_labels_sup[index]
                     feed_dict_test = {classifier_data_place_holder: classifier_test_data,
                                       classifier_label_place_holder: classifier_test_labels}

@@ -30,8 +30,8 @@ def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels,
             test_data_indices_sup = pad_zeros(test_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
         train_labels_sup = train_labels[I]
         test_labels_sup = test_labels[J]
-        train_labels_sup = train_labels_sup > split_class
-        test_labels_sup = test_labels_sup > split_class
+        train_labels_sup = train_labels_sup >= split_class
+        test_labels_sup = test_labels_sup >= split_class
     elif num_classes == 5:
         if fixed_length:
             train_data_indices_sup = pad_zeros(train_data_indices, vector_up.shape[0] - 1, max_doc_len)
