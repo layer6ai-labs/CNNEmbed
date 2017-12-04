@@ -29,7 +29,12 @@ def get_sup_data(train_data_indices, test_data_indices, train_labels, test_label
         max_doc_len: int, the length all sentences will be truncated or padded to when fixed_length is true.
         num_classes: int, the classes number of the supervised learning
         zero_vector_index: the index of the zero vector. The zeros vector would be used in fix_length padding
-    :return:
+
+    Returns:
+        train_data_indices_sup: int numpy array, supervised training data
+        test_data_indices_sup: int numpy array, supervised testing data
+        train_labels_sup: int numpy array, supervised training data
+        test_labels_sup: int numpy array, supervised testing data
     """
     train_labels = train_labels.reshape([train_labels.shape[0]])
     test_labels = test_labels.reshape([test_labels.shape[0]])
