@@ -13,9 +13,22 @@ def pad_zeros(data_indices, zero_ind, max_doc_len):
 
     return np.array(new_data_indices)
 
-def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels,
-                 unlabeled_class, split_class, fixed_length, max_doc_len, num_classes):
+def get_sup_data(train_data_indices, test_data_indices, train_labels, test_labels,
+                 unlabeled_class, split_class, fixed_length, max_doc_len, num_classes, zero_vector_index):
     """
+    Get training data, training labels, testing data and testing labels for supervised learning.
+
+    Args:
+        train_data_indices: [total num of training data * variable length] int numpy array containing all training indices.
+        test_data_indices: [total num of testing data * variable length] int numpy array containing all testing indices.
+        train_labels: [total num of training data, 1] int numpy array containing all sentiment scores for training reviews.
+        test_labels: [total num of testing data, 1] int numpy array containing all sentiment scores for testing reviews.
+        unlabeled_class: int, the score representing neutral or unlabeled reviews.
+        split_class: int, the score splitting positive and negative scores.
+        fixed_length: boolean, if truncate and pad all sentences into a same length.
+        max_doc_len: int, the length all sentences will be truncated or padded to when fixed_length is true.
+        num_classes: int, the classes number of the supervised learning
+        zero_vector_index: the index of the zero vector. The zeros vector would be used in fix_length padding
     :return:
     """
     train_labels = train_labels.reshape([train_labels.shape[0]])
@@ -26,16 +39,16 @@ def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels,
         train_data_indices_sup = train_data_indices[I]
         test_data_indices_sup = test_data_indices[J]
         if fixed_length:
-            train_data_indices_sup = pad_zeros(train_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
-            test_data_indices_sup = pad_zeros(test_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
+            train_data_indices_sup = pad_zeros(train_data_indices_sup, zero_vector_index, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices_sup, zero_vector_index, max_doc_len)
         train_labels_sup = train_labels[I]
         test_labels_sup = test_labels[J]
         train_labels_sup = train_labels_sup >= split_class
         test_labels_sup = test_labels_sup >= split_class
     elif num_classes == 5:
         if fixed_length:
-            train_data_indices_sup = pad_zeros(train_data_indices, vector_up.shape[0] - 1, max_doc_len)
-            test_data_indices_sup = pad_zeros(test_data_indices, vector_up.shape[0] - 1, max_doc_len)
+            train_data_indices_sup = pad_zeros(train_data_indices, zero_vector_index, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices, zero_vector_index, max_doc_len)
         else:
             train_data_indices_sup = np.copy(train_data_indices)
             test_data_indices_sup = np.copy(test_data_indices)
@@ -126,7 +139,7 @@ class BatchGeneratorSample(object):
                 t_ind = len(dat) - self.num_pos_exs
                 context_inds = set(dat)
             else:
-                forward_inds = range(self.context_len, min(len(dat) - self.num_pos_exs + 1, self.max_doc_len))
+                forward_inds = range(self.context_len, min(len(dat), self.max_doc_len) - self.num_pos_exs + 1)
                 t_ind = np.random.choice(forward_inds)
                 pos_inds = dat[t_ind:t_ind+self.num_pos_exs]
                 context_inds = set(dat[:t_ind + self.num_pos_exs])
