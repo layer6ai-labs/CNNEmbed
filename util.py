@@ -2,13 +2,18 @@ import numpy as np
 import sys
 import time
 
+
 def pad_zeros(data_indices, zero_ind, max_doc_len):
     """
     Pad the indices with zero in the beginning if the length is less than max number of words.
 
     Args:
-        data_indices
+        data_indices (list): A list of documents, where each document is a list of indices.
+        zero_ind (int): Index to the zero vector, in the embedding matrix.
+        max_doc_len (int): Maximum length of the document, for padding.
 
+    Returns:
+        new_data_indices (numpy.ndarray): The same documents, but padded so that every document is the same length.
     """
 
     new_data_indices = []
@@ -18,6 +23,7 @@ def pad_zeros(data_indices, zero_ind, max_doc_len):
         new_data_indices.append(doc)
 
     return np.array(new_data_indices)
+
 
 def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels,
                  unlabeled_class, split_class, fixed_length, max_doc_len, num_classes):
@@ -54,13 +60,25 @@ def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels,
     return train_data_indices_sup, test_data_indices_sup, train_labels_sup, test_labels_sup
 
 
-class BatchGeneratorSample(object):
-    '''
-    Class for generating batches of data, but subsample the training data.
-    '''
+class BatchGenerator(object):
+    """
+    Class for generating batches of training. This class also generates the negative samples for each training
+    document.
+    """
 
-    def __init__(self, training_inds, num_pos_exs, num_neg_exs, max_doc_len, context_len, vocab_size,
-                 batch_size):
+    def __init__(self, training_inds, num_pos_exs, num_neg_exs, max_doc_len, context_len, vocab_size, batch_size):
+        """
+        Create a batch generator.
+
+        Args:
+            training_inds (list): List of documents, each one represented as a list of indices
+            num_pos_exs (int): Number of words forward to predict
+            num_neg_exs (int): Number of negative samples
+            max_doc_len (int): Length of each document
+            context_len (int): Length of the minimum context to give for each training instance.
+            vocab_size (int): Vocabulary size
+            batch_size (int): Batch size
+        """
 
         self.num_pos_exs = num_pos_exs
         self.num_neg_exs = num_neg_exs
@@ -68,9 +86,7 @@ class BatchGeneratorSample(object):
         self.context_len = context_len
         self.vocab_size = vocab_size
         self.batch_size = batch_size
-        self.queue_len = 10
         self.counter = 0
-        self.queue = []
 
         # Remove the documents that are too short.
         self.training_inds = self.remove_short_docs(training_inds)
@@ -85,6 +101,12 @@ class BatchGeneratorSample(object):
     def remove_short_docs(self, training_inds):
         '''
         Remove the documents from the training indices that are less than the context length.
+
+        Args:
+            training_inds (list): List of documents, each one represented as a list of indices
+
+        Returns:
+            Same list of documents, but with the documents that are too short removed.
         '''
 
         skipped_docs = 0
@@ -99,23 +121,21 @@ class BatchGeneratorSample(object):
         return np.array(new_train_inds)
 
     def get_data(self):
-
-        if len(self.queue) > 0:
-            return self.queue.pop()
-        elif len(self.queue) == 0 and self.counter + self.batch_size > len(self.shuffle_indices):
-            return None
-
-    def add_to_queue(self):
+        """
+        Return a training batch, along with the forward prediction words and negative samples.
+        """
 
         if self.counter + self.batch_size <= len(self.shuffle_indices):
             inds = self.shuffle_indices[self.counter:self.counter + self.batch_size]
-            self.queue.append((self.training_inds_with_samples[inds, :], self.target_with_samples[inds, :]))
             self.counter += self.batch_size
+            return self.training_inds_with_samples[inds, :], self.target_with_samples[inds, :]
+        else:
+            return None
 
-    def refill_queue(self):
-        '''
-        Refill the queue.
-        '''
+    def generate_training_batches(self):
+        """
+        Generate all batches for training.
+        """
 
         self.training_inds_with_samples = []
         self.target_with_samples = []
@@ -153,8 +173,6 @@ class BatchGeneratorSample(object):
 
         # Shuffle the batches.
         self.shuffle_indices = np.random.permutation(self.training_inds_with_samples.shape[0])
-        for i in range(self.queue_len):
-            self.add_to_queue()
 
         print('Time spent generating all negative samples: {}'.format(time.time() - t1))
         print('Number of resamples: {}'.format(num_resamples))

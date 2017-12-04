@@ -183,29 +183,25 @@ def main(args):
     batch_target = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
 
     # Batch generator
-    batch_generator = BatchGeneratorSample(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
-                                           context_len, vector_up.shape[0] - 1, batch_size)
+    batch_generator = BatchGenerator(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
+                                     context_len, vector_up.shape[0] - 1, batch_size)
 
     itr = 0
     # Training Loop
     while itr < max_iter:
-        dataSize = batch_generator.get_data_size()
-        batchPerEpoch = dataSize / batch_size
-        print('Number of batches: {}'.format(batchPerEpoch))
+        data_size = batch_generator.get_data_size()
+        batch_per_epoch = data_size / batch_size
+        print('Number of batches: {}'.format(batch_per_epoch))
         sess_docCNN.run(global_step.assign(itr))
-        batch_generator.refill_queue()
+        batch_generator.generate_training_batches()
         train_times = []
         placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
                         keep_prob_placeholder]
-        for i in range(batchPerEpoch):
+        for i in range(batch_per_epoch):
             t1 = time.time()
             ret_val = batch_generator.get_data()
             data_inds, target_inds = ret_val
-
             training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob)
-
-            # Add batches to the queue
-            batch_generator.add_to_queue()
             train_times.append(time.time() - t1)
 
             if i % 100 == 0:
@@ -224,12 +220,12 @@ def main(args):
             print('training a new classifier')
             # Forward pass to get the embeddings
             sess_classifier.run(train_init_op_classifier)
-            dataSize = len(train_data_indices_sup)
+            data_size = len(train_data_indices_sup)
 
-            train_data_doc2vec_sup = np.zeros([dataSize, embed_dim])
-            test_data_doc2vec_sup = np.zeros([dataSize, embed_dim])
+            train_data_doc2vec_sup = np.zeros([data_size, embed_dim])
+            test_data_doc2vec_sup = np.zeros([data_size, embed_dim])
 
-            for i in range(dataSize):
+            for i in range(data_size):
                 classifier_train_inds = np.expand_dims(train_data_indices_sup[i], axis=0)
                 classifier_test_data = np.expand_dims(test_data_indices_sup[i], axis=0)
 

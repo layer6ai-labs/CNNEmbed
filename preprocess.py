@@ -126,6 +126,7 @@ def get_data_imdb(data_path, max_doc_len, fixed_length=True):
     for i in range(len(test_data_indices)):
         for j in range(len(test_data_indices[i])):
             test_data_indices[i][j] = reverse_index[test_data_indices[i][j]]
+
     #Convert list to np array
     train_data_indices = np.array(train_data_indices)
     train_labels = np.array(train_labels)

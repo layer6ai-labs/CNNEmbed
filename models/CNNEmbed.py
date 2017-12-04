@@ -106,6 +106,17 @@ class CNNEmbed(object):
     def conv_op(self, fan_in, filter_width, filter_height, in_chans, name, std):
         '''
         Create a convolutional layer.
+
+        Args:
+            fan_in: Input tensor to the convoluational operation.
+            filter_width (int): Width of the conv filter
+            filter_height (int): height of the conv filter
+            in_chans (int): Number of input channels
+            name (str): Name to use for the tensor
+            std (float): Standard deviation used to initialize the tensor values.
+
+        Returns:
+            An output tensor, after applying the convolution operation.
         '''
 
         paddings = [[0, 0], [0, 0], [filter_width / 2, filter_width / 2], [0, 0]]
