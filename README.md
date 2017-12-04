@@ -4,7 +4,7 @@
 </p>
 
 # CNNEmbed
-[Tensorflow](https://www.tensorflow.org/) implementation of [CNNEMbed](https://arxiv.org/abs/1711.04168).
+[Tensorflow](https://www.tensorflow.org/) implementation of [Learning Document Embeddings With CNNs](https://arxiv.org/abs/1711.04168).
 
 Authors: [Shunan Zhao](http://www.cs.toronto.edu/~szhao/), [Chundi Liu](https://ca.linkedin.com/in/chundiliu), [Maksims Volkovs](http://www.cs.toronto.edu/~mvolkovs)
 
