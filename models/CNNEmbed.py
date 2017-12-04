@@ -85,8 +85,8 @@ class CNNEmbed(object):
             if self.k_max:
                 # If we're doing k-max pooling
                 output = tf.nn.top_k(tf.transpose(prev_layer, [0, 1, 3, 2]), self.k_max)[0]
-                output = tf.reshape(output, [-1, 3 * self.num_filters])
-                weights = tf.get_variable(name='weights', shape=[3 * self.num_filters, self.embed_dim],
+                output = tf.reshape(output, [-1, self.k_max * self.num_filters])
+                weights = tf.get_variable(name='weights', shape=[self.k_max * self.num_filters, self.embed_dim],
                                           dtype=tf.float32,
                                           initializer=tf.random_normal_initializer(0.0, std))
                 biases = tf.get_variable(name='biases', shape=[self.embed_dim], dtype=tf.float32,
