@@ -99,12 +99,16 @@ def main(args):
         np.save(test_data_indices_fn, test_data_indices)
         np.save(test_labels_fn, test_labels)
 
-    # Get the supervised train and test data
-    train_data_indices_sup, test_data_indices_sup, train_labels_sup, test_labels_sup = \
-        get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels, unlabeled_class,
-                     split_class, fixed_length, max_doc_len, args.num_classes)
+    #Get the index of zero vector
+    zero_vector_index = vector_up.shape[0] - 1
 
+    # Get the supervised train and test data
     # Build the model graphs
+    print("all of our inputs follow NHWC: batch, height, width, channel.")
+    train_data_indices_sup, test_data_indices_sup, \
+    train_labels_sup, test_labels_sup = get_sup_data(train_data_indices, test_data_indices, train_labels, test_labels,
+                 unlabeled_class, split_class, fixed_length, max_doc_len, args.num_classes, zero_vector_index)
+    #Build the model graph
     print("all of our inputs follow NHWC: batch, height, width, channel.")
     ###########################################Embedding learning Graph#########################################
     doc2vec_graph = tf.Graph()
@@ -220,18 +224,21 @@ def main(args):
             print('training a new classifier')
             # Forward pass to get the embeddings
             sess_classifier.run(train_init_op_classifier)
-            data_size = len(train_data_indices_sup)
+            train_data_size = len(train_data_indices_sup)
+            test_data_size = len(test_data_indices_sup)
 
-            train_data_doc2vec_sup = np.zeros([data_size, embed_dim])
-            test_data_doc2vec_sup = np.zeros([data_size, embed_dim])
+            train_data_doc2vec_sup = np.zeros([train_data_size, embed_dim])
+            test_data_doc2vec_sup = np.zeros([test_data_size, embed_dim])
 
-            for i in range(data_size):
+            for i in range(train_data_size):
                 classifier_train_inds = np.expand_dims(train_data_indices_sup[i], axis=0)
-                classifier_test_data = np.expand_dims(test_data_indices_sup[i], axis=0)
 
                 feed_dict_train = {indices_data_placeholder: classifier_train_inds, keep_prob_placeholder: 1}
                 train_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_train)
                 train_data_doc2vec_sup[i, :] = train_doc2vec
+
+            for i in range(test_data_size):
+                classifier_test_data = np.expand_dims(test_data_indices_sup[i], axis=0)
 
                 feed_dict_test = {indices_data_placeholder: classifier_test_data, keep_prob_placeholder: 1}
                 test_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_test)
@@ -239,17 +246,18 @@ def main(args):
 
             acc_test_best = 0
 
+            classifier_train_num_batch = train_data_size / batch_size
+            classifier_test_num_batch = test_data_size / batch_size
+
             for classifier_iter in range(classifier_max_iter):
-                classifier_data_size = len(train_data_indices_sup)
-                num_classifier_batches = classifier_data_size / batch_size
-                classifier_shuffle_index = np.random.permutation(classifier_data_size)
+                classifier_train_shuffle_index = np.random.permutation(train_data_size)
                 acc_train = 0
                 acc_test = 0
                 loss_out = 0
 
-                for i in range(num_classifier_batches):
-                    index = classifier_shuffle_index[
-                        np.arange(i * batch_size, min((i + 1) * batch_size, classifier_data_size))]
+                for i in range(classifier_train_num_batch):
+                    index = classifier_train_shuffle_index[
+                        np.arange(i * batch_size, min((i + 1) * batch_size, train_data_size))]
 
                     classifier_train_inds = train_data_doc2vec_sup[index, :]
                     classifier_train_labels = train_labels_sup[index]
@@ -262,10 +270,8 @@ def main(args):
                     loss_out += _loss_out
                     acc_train += _acc_train
 
-                for i in range(num_classifier_batches):
-                    index = classifier_shuffle_index[
-                        np.arange(i * batch_size, min((i + 1) * batch_size, classifier_data_size))]
-
+                for i in range(classifier_test_num_batch):
+                    index = np.arange(i * batch_size, min((i + 1) * batch_size, test_data_size))
                     classifier_test_data = test_data_doc2vec_sup[index, :]
                     classifier_test_labels = test_labels_sup[index]
                     feed_dict_test = {classifier_data_place_holder: classifier_test_data,
@@ -275,15 +281,14 @@ def main(args):
                     if isinstance(_acc_test, list):
                         _acc_test = _acc_test[0]
                     acc_test += _acc_test
-
-                train_accuracy = acc_train / num_classifier_batches
-                test_accuracy = acc_test / num_classifier_batches
+                    
+                train_accuracy = acc_train / classifier_train_num_batch
+                test_accuracy = acc_test / classifier_test_num_batch
                 print('iter: {}, loss: {}, train accuracy: {}, test accuracy: {}'.
                       format(classifier_iter, loss_out, train_accuracy, test_accuracy))
                 if test_accuracy > acc_test_best:
                     acc_test_best = test_accuracy
             print('best test acc is: {}'.format(acc_test_best))
-
             if acc_test_best > overall_highest:
                 overall_highest = acc_test_best
 

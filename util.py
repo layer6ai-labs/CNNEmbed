@@ -25,29 +25,49 @@ def pad_zeros(data_indices, zero_ind, max_doc_len):
     return np.array(new_data_indices)
 
 
-def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels,
-                 unlabeled_class, split_class, fixed_length, max_doc_len, num_classes):
+def get_sup_data(train_data_indices, test_data_indices, train_labels, test_labels,
+                 unlabeled_class, split_class, fixed_length, max_doc_len, num_classes, zero_vector_index):
     """
-    :return:
+    Get training data, training labels, testing data and testing labels for supervised learning.
+
+    Args:
+        train_data_indices: [total num of training data * variable length] int numpy array containing all training indices.
+        test_data_indices: [total num of testing data * variable length] int numpy array containing all testing indices.
+        train_labels: [total num of training data, 1] int numpy array containing all sentiment scores for training reviews.
+        test_labels: [total num of testing data, 1] int numpy array containing all sentiment scores for testing reviews.
+        unlabeled_class (int): the score representing neutral or unlabeled reviews.
+        split_class (int): the score splitting positive and negative scores.
+        fixed_length (bool): if true, truncate and pad all sentences into a same length.
+        max_doc_len (int): the length all sentences will be truncated or padded to, when fixed_length is true.
+        num_classes (int): the number of classes, for the supervised learning
+        zero_vector_index (int): the index of the zero vector, used in fixed length padding
+
+    Returns:
+        train_data_indices_sup: int numpy array, supervised training data
+        test_data_indices_sup: int numpy array, supervised testing data
+        train_labels_sup: int numpy array, supervised training labels
+        test_labels_sup: int numpy array, supervised testing labels
     """
+
     train_labels = train_labels.reshape([train_labels.shape[0]])
     test_labels = test_labels.reshape([test_labels.shape[0]])
+
     if num_classes == 2:
         I = train_labels != unlabeled_class
         J = test_labels != unlabeled_class
         train_data_indices_sup = train_data_indices[I]
         test_data_indices_sup = test_data_indices[J]
         if fixed_length:
-            train_data_indices_sup = pad_zeros(train_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
-            test_data_indices_sup = pad_zeros(test_data_indices_sup, vector_up.shape[0] - 1, max_doc_len)
+            train_data_indices_sup = pad_zeros(train_data_indices_sup, zero_vector_index, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices_sup, zero_vector_index, max_doc_len)
         train_labels_sup = train_labels[I]
         test_labels_sup = test_labels[J]
         train_labels_sup = train_labels_sup >= split_class
         test_labels_sup = test_labels_sup >= split_class
     elif num_classes == 5:
         if fixed_length:
-            train_data_indices_sup = pad_zeros(train_data_indices, vector_up.shape[0] - 1, max_doc_len)
-            test_data_indices_sup = pad_zeros(test_data_indices, vector_up.shape[0] - 1, max_doc_len)
+            train_data_indices_sup = pad_zeros(train_data_indices, zero_vector_index, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices, zero_vector_index, max_doc_len)
         else:
             train_data_indices_sup = np.copy(train_data_indices)
             test_data_indices_sup = np.copy(test_data_indices)
@@ -151,7 +171,7 @@ class BatchGenerator(object):
                 t_ind = len(dat) - self.num_pos_exs
                 context_inds = set(dat)
             else:
-                forward_inds = range(self.context_len, min(len(dat) - self.num_pos_exs + 1, self.max_doc_len))
+                forward_inds = range(self.context_len, min(len(dat), self.max_doc_len) - self.num_pos_exs + 1)
                 t_ind = np.random.choice(forward_inds)
                 pos_inds = dat[t_ind:t_ind+self.num_pos_exs]
                 context_inds = set(dat[:t_ind + self.num_pos_exs])
