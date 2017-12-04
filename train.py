@@ -1,49 +1,41 @@
 import argparse
-import os
-import sys
-
-import numpy as np
 import tensorflow as tf
 from preprocess import *
 from util import *
-import pdb
-
-from models.CNNEmbed import  CNNEmbed
-from models.SentimentClassifier import  SentimentClassifier
-
+from models.CNNEmbed import CNNEmbed
+from models.SentimentClassifier import SentimentClassifier
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-if __name__ == '__main__':
 
-    # command line tools for specifying the hyper-parameters only.
-    parser = argparse.ArgumentParser(description='Train a CNN for embedding learning.')
-    parser.add_argument('--context-len', type=int, help='The size of the minimum context.')
-    parser.add_argument('--batch-size', type=int, help='Batch size.')
-    parser.add_argument('--num-filters', type=int, help='Number of convolutional filters.')
-    parser.add_argument('--num-layers', type=int, help='Number of layers, including the last fully-connected layer.')
-    parser.add_argument('--num-positive-words', type=int, help='Number of next words to predict.')
-    parser.add_argument('--num-negative-words', type=int, help='Number of negative samples.')
-    parser.add_argument('--num-residual', type=int, default=-1, help='Number of layers to skip in residual connections.')
-    parser.add_argument('--num-classes', type=int, default=2, help='Number of classes in the classifier (2 or 5).')
-    parser.add_argument('--dropout-keep-prob', type=float, default=0.8, help='The dropout keep prob.')
-    parser.add_argument('--preprocessing', action='store_true', help='If redo the pre-processing. If set as False, the '
-                                                                     'the program would try to load saved pre-processed'
-                                                                     'files.')
-    parser.add_argument('--cache-dir', type=str, default='./cache', help='The directory for saved pre-processed and'
-                                                                           'embedding files')
-    parser.add_argument('--dataset', type=str,required=True, help='Name of the dataset the model is training on.'
-                                                                    'Either amazon or imdb.')
-    parser.add_argument('--data-dir', type=str, default='/home/chundi/L6/Data/', help='Data directory.')
-    parser.add_argument('--checkpoint-dir', type=str, default='./latest_model/', help='Checkpoints directory.')
-    parser.add_argument('--model', type=str, default='CNN_pad',help='The model to use. Can be CNN_pad, CNN_pool or CNN_topk')
-    parser.add_argument('--dynamic', action='store_true', help='Make the word embeddings trainable.')
-    parser.add_argument('--embed-dim', type=int, default=300, help='The dimensionality of the word embeddings.')
-    parser.add_argument('--learning-rate', type=float, default=0.0003, help='Initial learning rate.')
-    parser.add_argument('--top-k', type=int, default=0, help='The value of k when performing k-max pooling')
-    parser.add_argument('--max-iter', type=int, default=100, help='The maximum number of iterations.')
+def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
+    """
+    Do a training pass through a batch of the data.
 
-    args = parser.parse_args()
+    Args:
+        sess: Tensorflow session.
+        train_op: Tensorflow training operation.
+        data_inds (numpy.ndarray): The training data, as an array of indices.
+        target_inds (numpy.ndarray): The next words to predict
+        batch_target (numpy.ndarray): The target labels
+        placeholders (list): Tensorflow placeholders used for training
+        keep_prob (float): The keep prob, used for dropout
+
+    Returns:
+        None
+    """
+
+    indices_data_placeholder = placeholders[0]
+    indices_target_placeholder = placeholders[1]
+    target_place_holder = placeholders[2]
+    kp_placeholder = placeholders[3]
+
+    feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
+                 target_place_holder: batch_target, kp_placeholder: keep_prob}
+    sess.run([train_op], feed_dict)
+
+
+def main(args):
 
     context_len = args.context_len
     batch_size = args.batch_size
@@ -58,25 +50,27 @@ if __name__ == '__main__':
     data_dir = args.data_dir
     checkpoint_path = args.checkpoint_dir
     max_iter = args.max_iter
+    k_max = 0
 
     if args.dataset == 'imdb':
         max_doc_len = 400
         split_class = 7
         unlabeled_class = 0
-    else: #argparse.dataset == 'amazon':
+    else:
+        # Using the amazon dataset
         max_doc_len = 200
         split_class = 3
         unlabeled_class = 2
 
     if args.model == 'CNN_pad':
         fixed_length = True
-    else: #argparse.dataset == 'pool or topk':
+    else:
+        # If using 'pool or topk'
         fixed_length = False
         if args.model == 'CNN_topk':
             k_max = args.top_k
 
     classifier_max_iter = 500
-
 
     cache_dir = args.cache_dir + '_' + args.dataset
     vector_up_fn = os.path.join(cache_dir, 'vector_up.npy')
@@ -84,8 +78,6 @@ if __name__ == '__main__':
     train_labels_fn = os.path.join(cache_dir, 'train_labels.npy')
     test_data_indices_fn = os.path.join(cache_dir, 'test_data_indices.npy')
     test_labels_fn = os.path.join(cache_dir, 'test_labels.npy')
-    train_batches_fn = os.path.join(cache_dir, 'train_batches.npy')
-    next_words_fn = os.path.join(cache_dir, 'next_words.npy')
 
     ###########################################Preprocessing#########################################
     if not args.preprocessing:
@@ -99,7 +91,7 @@ if __name__ == '__main__':
         # Preprocess data
         if args.dataset == 'imdb':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_imdb(data_dir, max_doc_len, fixed_length)
-        else: #argparse.dataset == 'amazon':
+        else:
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_amazon(data_dir, max_doc_len, fixed_length)
         np.save(vector_up_fn, vector_up)
         np.save(train_data_inds_fn, train_data_indices)
@@ -108,18 +100,19 @@ if __name__ == '__main__':
         np.save(test_labels_fn, test_labels)
 
     # Get the supervised train and test data
-    train_data_indices_sup, test_data_indices_sup, \
-    train_labels_sup, test_labels_sup = get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels,
-                 unlabeled_class, split_class, fixed_length, max_doc_len, args.num_classes)
-    #Build the model graph
-    print("all of our inputs would follow NHWC _batch_height_width_channel_")
+    train_data_indices_sup, test_data_indices_sup, train_labels_sup, test_labels_sup = \
+        get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels, test_labels, unlabeled_class,
+                     split_class, fixed_length, max_doc_len, args.num_classes)
+
+    # Build the model graphs
+    print("all of our inputs follow NHWC: batch, height, width, channel.")
     ###########################################Embedding learning Graph#########################################
     doc2vec_graph = tf.Graph()
     with doc2vec_graph.as_default(), tf.device("/gpu:0"):
         indices_data_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, None])
         indices_target_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, pos_words_num + neg_words_num])
 
-        embedding = tf.get_variable("embedding", [vector_up.shape[0], embed_dim], dtype=tf.float32, trainable=args.dynamic)
+        embedding = tf.get_variable("embedding", [vector_up.shape[0], embed_dim], dtype=tf.float32, trainable=True)
         assign_embedding_op = tf.assign(embedding, vector_up)
         inputs = tf.gather(embedding, indices_data_placeholder)
         inputs = tf.expand_dims(inputs, 3)
@@ -135,7 +128,7 @@ if __name__ == '__main__':
 
         # build model
         _docCNN = CNNEmbed(inputs, targets_embeds, target_place_holder, keep_prob_placeholder, max_doc_len, embed_dim,
-                 num_layers, num_filters, num_residual, k_max)
+                           num_layers, num_filters, num_residual, k_max)
 
         global_step = tf.Variable(0, trainable=False)
 
@@ -145,7 +138,7 @@ if __name__ == '__main__':
         test_obj_cal_output = tf.squeeze(_docCNN.res)
 
         # setting the learning rate
-        #Not using learning rate decay
+        # Not using learning rate decay
         learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, sys.maxint, 0.99, staircase=True)
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate_t)
         grads_and_vars = optimizer.compute_gradients(loss)
@@ -187,20 +180,19 @@ if __name__ == '__main__':
     sess_docCNN.run(assign_embedding_op)
     overall_highest = 0
 
-    BATCH_TARGET = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
+    batch_target = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
 
-    #Batch generator
+    # Batch generator
     batch_generator = BatchGeneratorSample(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
                                            context_len, vector_up.shape[0] - 1, batch_size)
 
     itr = 0
-    #Training Loop
+    # Training Loop
     while itr < max_iter:
         dataSize = batch_generator.get_data_size()
         batchPerEpoch = dataSize / batch_size
         print('Number of batches: {}'.format(batchPerEpoch))
         sess_docCNN.run(global_step.assign(itr))
-        totalLoss = 0
         batch_generator.refill_queue()
         train_times = []
         placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
@@ -210,7 +202,7 @@ if __name__ == '__main__':
             ret_val = batch_generator.get_data()
             data_inds, target_inds = ret_val
 
-            training_func(sess_docCNN, train_op, data_inds, target_inds, BATCH_TARGET, placeholders, keep_prob)
+            training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob)
 
             # Add batches to the queue
             batch_generator.add_to_queue()
@@ -218,19 +210,19 @@ if __name__ == '__main__':
 
             if i % 100 == 0:
                 feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
-                             target_place_holder: BATCH_TARGET, keep_prob_placeholder: 1}
+                             target_place_holder: batch_target, keep_prob_placeholder: 1}
                 loss_out = sess_docCNN.run([loss], feed_dict)
-                print "Iteration: ", itr, "Batch", i, " Loss: ", loss_out
+                print('Iteration: {}, batch: {}, loss: {}'.format(itr, i, loss_out))
                 print('Average train time: {:.5f}'.format(np.mean(train_times)))
                 print('-----------------------------------------------')
                 train_times = []
 
         print('overall highest accuracy: {}'.format(overall_highest))
 
-        #Rr-train the classifier
+        # Training the classifier from scratch.
         if itr > 0 and itr % 10 == 0:
-            print "training a new classifier"
-            # Forward pass to get the doc2vec
+            print('training a new classifier')
+            # Forward pass to get the embeddings
             sess_classifier.run(train_init_op_classifier)
             dataSize = len(train_data_indices_sup)
 
@@ -252,16 +244,16 @@ if __name__ == '__main__':
             acc_test_best = 0
 
             for classifier_iter in range(classifier_max_iter):
-                classifier_dataSize = len(train_data_indices_sup)
-                classifier_batchPerEpoch = classifier_dataSize / batch_size
-                classifier_shuffle_index = np.random.permutation(classifier_dataSize)
+                classifier_data_size = len(train_data_indices_sup)
+                num_classifier_batches = classifier_data_size / batch_size
+                classifier_shuffle_index = np.random.permutation(classifier_data_size)
                 acc_train = 0
                 acc_test = 0
                 loss_out = 0
 
-                for i in range(classifier_batchPerEpoch):
+                for i in range(num_classifier_batches):
                     index = classifier_shuffle_index[
-                        np.arange(i * batch_size, min((i + 1) * batch_size, classifier_dataSize))]
+                        np.arange(i * batch_size, min((i + 1) * batch_size, classifier_data_size))]
 
                     classifier_train_inds = train_data_doc2vec_sup[index, :]
                     classifier_train_labels = train_labels_sup[index]
@@ -274,9 +266,9 @@ if __name__ == '__main__':
                     loss_out += _loss_out
                     acc_train += _acc_train
 
-                for i in range(classifier_batchPerEpoch):
+                for i in range(num_classifier_batches):
                     index = classifier_shuffle_index[
-                        np.arange(i * batch_size, min((i + 1) * batch_size, classifier_dataSize))]
+                        np.arange(i * batch_size, min((i + 1) * batch_size, classifier_data_size))]
 
                     classifier_test_data = test_data_doc2vec_sup[index, :]
                     classifier_test_labels = test_labels_sup[index]
@@ -288,11 +280,14 @@ if __name__ == '__main__':
                         _acc_test = _acc_test[0]
                     acc_test += _acc_test
 
-                print "iter: ", classifier_iter, "loss", loss_out, "train acc: ", acc_train / classifier_batchPerEpoch, \
-                    "test acc", acc_test / classifier_batchPerEpoch
-                if (acc_test / classifier_batchPerEpoch) > acc_test_best:
-                    acc_test_best = (acc_test / classifier_batchPerEpoch)
-            print "best test acc is:", acc_test_best
+                train_accuracy = acc_train / num_classifier_batches
+                test_accuracy = acc_test / num_classifier_batches
+                print('iter: {}, loss: {}, train accuracy: {}, test accuracy: {}'.
+                      format(classifier_iter, loss_out, train_accuracy, test_accuracy))
+                if test_accuracy > acc_test_best:
+                    acc_test_best = test_accuracy
+            print('best test acc is: {}'.format(acc_test_best))
+
             if acc_test_best > overall_highest:
                 overall_highest = acc_test_best
 
@@ -300,3 +295,35 @@ if __name__ == '__main__':
             print('Saving model at {}'.format(itr))
             saver.save(sess_docCNN, os.path.join(checkpoint_path, 'model'), global_step=itr)
         itr += 1
+
+
+if __name__ == '__main__':
+
+    # command line tools for specifying the hyper-parameters and other training options.
+    parser = argparse.ArgumentParser(description='Train a CNN for embedding learning.')
+    parser.add_argument('--context-len', type=int, help='The size of the minimum context.')
+    parser.add_argument('--batch-size', type=int, help='Batch size.')
+    parser.add_argument('--num-filters', type=int, help='Number of convolutional filters.')
+    parser.add_argument('--num-layers', type=int, help='Number of layers, including the last fully-connected layer.')
+    parser.add_argument('--num-positive-words', type=int, help='Number of next words to predict.')
+    parser.add_argument('--num-negative-words', type=int, help='Number of negative samples.')
+    parser.add_argument('--num-residual', type=int, default=-1, help='Number of layers to skip in residual connections.')
+    parser.add_argument('--num-classes', type=int, default=2,
+                        help='Number of classes in the classifier (2 or 5). For IMDB, the number classes is only 2.')
+    parser.add_argument('--dropout-keep-prob', type=float, default=0.8, help='The dropout keep prob.')
+    parser.add_argument('--preprocessing', action='store_true',
+                        help='If true, redo the pre-processing. Otherwise, load the saved pre-processed files.')
+    parser.add_argument('--cache-dir', type=str, default='./cache',
+                        help='The directory containing the saved pre-processed and embedding files')
+    parser.add_argument('--dataset', type=str, required=True, help='The dataset to use, either \'amazon\' or \'imdb\'.')
+    parser.add_argument('--data-dir', type=str, required=True, help='Directory containing the data.')
+    parser.add_argument('--checkpoint-dir', type=str, default='./latest_model/', help='Checkpoints directory.')
+    parser.add_argument('--model', type=str, default='CNN_pad',
+                        help='The model to use, which is \'CNN_pad\', \'CNN_pool\' or \'CNN_topk\'')
+    parser.add_argument('--embed-dim', type=int, default=300, help='The dimensionality of the word embeddings.')
+    parser.add_argument('--learning-rate', type=float, default=0.0003, help='The learning rate.')
+    parser.add_argument('--top-k', type=int, default=0, help='The value of k when performing k-max pooling')
+    parser.add_argument('--max-iter', type=int, default=100, help='The maximum number of training iterations.')
+
+    args = parser.parse_args()
+    main(args)

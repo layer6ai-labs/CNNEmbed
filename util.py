@@ -3,7 +3,13 @@ import sys
 import time
 
 def pad_zeros(data_indices, zero_ind, max_doc_len):
-    '''Pad the indices with zero in the beginning if the length is less than max number of words.'''
+    """
+    Pad the indices with zero in the beginning if the length is less than max number of words.
+
+    Args:
+        data_indices
+
+    """
 
     new_data_indices = []
     for doc in data_indices:
@@ -46,6 +52,7 @@ def get_sup_data(vector_up, train_data_indices, test_data_indices, train_labels,
         sys.exit()
 
     return train_data_indices_sup, test_data_indices_sup, train_labels_sup, test_labels_sup
+
 
 class BatchGeneratorSample(object):
     '''
@@ -94,11 +101,9 @@ class BatchGeneratorSample(object):
     def get_data(self):
 
         if len(self.queue) > 0:
-            ret_val = self.queue.pop()
+            return self.queue.pop()
         elif len(self.queue) == 0 and self.counter + self.batch_size > len(self.shuffle_indices):
             return None
-
-        return ret_val
 
     def add_to_queue(self):
 
@@ -153,16 +158,3 @@ class BatchGeneratorSample(object):
 
         print('Time spent generating all negative samples: {}'.format(time.time() - t1))
         print('Number of resamples: {}'.format(num_resamples))
-
-
-def training_func(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
-    '''Do a training pass through a batch of the data.'''
-
-    indices_data_placeholder = placeholders[0]
-    indices_target_placeholder = placeholders[1]
-    target_place_holder = placeholders[2]
-    kp_placeholder = placeholders[3]
-
-    feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
-                 target_place_holder: batch_target, kp_placeholder: keep_prob}
-    sess.run([train_op], feed_dict)
