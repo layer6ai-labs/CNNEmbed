@@ -108,8 +108,7 @@ def main(args):
     train_data_indices_sup, test_data_indices_sup, \
     train_labels_sup, test_labels_sup = get_sup_data(train_data_indices, test_data_indices, train_labels, test_labels,
                  unlabeled_class, split_class, fixed_length, max_doc_len, args.num_classes, zero_vector_index)
-    #Build the model graph
-    print("all of our inputs follow NHWC: batch, height, width, channel.")
+
     ###########################################Embedding learning Graph#########################################
     doc2vec_graph = tf.Graph()
     with doc2vec_graph.as_default(), tf.device("/gpu:0"):
@@ -281,7 +280,7 @@ def main(args):
                     if isinstance(_acc_test, list):
                         _acc_test = _acc_test[0]
                     acc_test += _acc_test
-                    
+
                 train_accuracy = acc_train / classifier_train_num_batch
                 test_accuracy = acc_test / classifier_test_num_batch
                 print('iter: {}, loss: {}, train accuracy: {}, test accuracy: {}'.
@@ -302,8 +301,8 @@ if __name__ == '__main__':
 
     # command line tools for specifying the hyper-parameters and other training options.
     parser = argparse.ArgumentParser(description='Train a CNN for embedding learning.')
-    parser.add_argument('--context-len', type=int, help='The size of the minimum context.')
-    parser.add_argument('--batch-size', type=int, help='Batch size.')
+    parser.add_argument('--context-len', default=10, type=int, help='The size of the minimum context.')
+    parser.add_argument('--batch-size', default=100, type=int, help='Batch size.')
     parser.add_argument('--num-filters', type=int, help='Number of convolutional filters.')
     parser.add_argument('--num-layers', type=int, help='Number of layers, including the last fully-connected layer.')
     parser.add_argument('--num-positive-words', type=int, help='Number of next words to predict.')
