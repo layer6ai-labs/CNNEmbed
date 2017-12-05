@@ -50,7 +50,7 @@ The python code is developed and tested on the following environment:
 * Intel i7-6800K
 * 64GB RAM
 * Nvidia GeForce GTX 1080 Ti
-* CUDA 9 and CUDNN 8.0
+* CUDA 8.0 and CUDNN 8.0
 
 Furthermore, we used the following libraries:
 * tensorflow-gpu 1.4.0
