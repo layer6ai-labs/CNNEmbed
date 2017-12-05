@@ -4,8 +4,8 @@
 </p>
 
 # CNNEmbed
-[Tensorflow](https://www.tensorflow.org/) implementation of [Learning Document Embeddings With CNNs]
-(https://arxiv.org/abs/1711.04168).
+[Tensorflow](https://www.tensorflow.org/) implementation of
+[Learning Document Embeddings With CNNs](https://arxiv.org/abs/1711.04168).
 
 Authors: [Shunan Zhao](http://www.cs.toronto.edu/~szhao/), [Chundi Liu](https://ca.linkedin.com/in/chundiliu), 
 [Maksims Volkovs](http://www.cs.toronto.edu/~mvolkovs)
@@ -76,6 +76,10 @@ data
       └─ dict.txt
 ```
 Provide the path to the `data` folder as the argument to `--data-dir` when running `train.py`.
+
+### Word2Vec
+In our experiments, we initialize our word embeddings using pre-trained word2vec vectors. These can be downloaded
+[here](https://code.google.com/archive/p/word2vec/).
 
 ### IMDB
 The imdb dataset was obtained from [here](http://ai.stanford.edu/~amaas/data/sentiment/) and contains movies reviews
