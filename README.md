@@ -63,7 +63,7 @@ Furthermore, we used the following libraries:
 
 ## Dataset
 To run the model, download the dataset from [here](https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz)
-and extract them to a `data` folder. You should structure your `data` directory as follows:
+and extract them to a directory, which I'll refer to as `$DATA_DIR`. You should structure your data directory as follows:
 ```
 data
   ├─ imdb_sentiment
@@ -74,7 +74,7 @@ data
   └─ word2vec
       └─ GoogleNews-vectors-negative300.bin
 ```
-Provide the path to the `data` folder as the argument to `--data-dir` when running `train.py`.
+Provide `$DATA_DIR` as the argument to `--data-dir` when running `train.py`.
 
 ### Word2Vec
 In our experiments, we initialize our word embeddings using pre-trained word2vec vectors. These can be downloaded
@@ -86,39 +86,35 @@ from the IMDB website, labelled by their sentiment score.
 
 ### Amazon Fine Food Reviews
 The AFFR dataset was obtained from [here](https://www.kaggle.com/snap/amazon-fine-food-reviews). The original dataset is
-highly inbalanced and contains many duplicates. As such, our uploaded dataset removes all duplicates and balances all
+highly unbalanced and contains many duplicates. As such, our uploaded dataset removes all duplicates and balances all
 the classes.
 
 ### Data Preparation
-
 ```bash
 wget https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz -O /tmp/CNNEmbedData.tar.gz
 cd /tmp/
 tar -zxvf CNNEmbedData.tar.gz
-CNNEMBED_DATA_DIR=/tmp/CNNEmbedData/
+mv CNNEmbedData $DATA_DIR
 ```
-Download pre-trained word2vec from [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing). Uncompress it and copy the binary file into data directory.
+Download the pre-trained word2vec embeddings [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing). 
+Uncompress it and copy the binary file to the data directory.
 
 ```bash
-cp GoogleNews-vectors-negative300.bin /tmp/CNNEmbedData/word2vec/
+cp GoogleNews-vectors-negative300.bin $DATA_DIR/word2vec/
 ```
+
+
 <a name="training"/>
 
 ## Training
 
 Because the pre-processing takes a long time, we store the pre-processed files in a cache directory, which you will need
-to create and provide to the `--cache-dir` argument. You will also need to create a directory to store the tensorflow
+to create and provide to the `--cache-dir` argument. You will also need to create a directory to store the Tensorflow
 models and provide to the `--checkpoint-dir` argument.
-
-For simplicity purposes, we create three temporary folders to store the cached data and tensorflow models.
-
-```bash
-git clone git@github.com:layer6ai-labs/CNNEmbed.git
-cd CNNEmbed
-```
-
 
 Run the following command to reproduce the IMDB results:
 ```bash
-python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 --num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 --data-dir=$CNNEMBED_DATA_DIR --preprocessing 
+python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 \ 
+--num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 \ 
+--data-dir=$DATA_DIR --preprocessing 
 ```
