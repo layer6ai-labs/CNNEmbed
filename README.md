@@ -118,3 +118,6 @@ python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers
 --num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 \ 
 --data-dir=$DATA_DIR --preprocessing 
 ```
+Notes:
+* By default, both document embedding learning and classifier happen on single GPU.
+* On our environment (described above), after 40 epoches (approximately 45 minutes), the classifier gets 90% accuracy on test dataset.
