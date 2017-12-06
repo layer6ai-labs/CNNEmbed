@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import pdb
 
 
 class CNNEmbed(object):
@@ -7,7 +8,7 @@ class CNNEmbed(object):
     Class for building a document embedding model using CNNs.
     '''
 
-    def __init__(self, input_data, target_embeddings, target_labels, keep_prob, max_doc_len=400, embed_dim=300,
+    def __init__(self, input_data, target_labels, keep_prob, max_doc_len=400, embed_dim=300,
                  num_layers=4, num_filters=900, residual_skip=2, k_max=0):
         '''
         Create a CNN for learning document embeddings.
@@ -27,7 +28,6 @@ class CNNEmbed(object):
         '''
 
         self.input_data = input_data
-        self.target_embeddings = target_embeddings
         self.target_labels = target_labels
         self.keep_prob = keep_prob
         self.max_word_num = max_doc_len
@@ -150,9 +150,50 @@ class CNNEmbed(object):
         Return the sigmoid loss.
         '''
 
-        cnn_output = tf.transpose(self.res, [0, 3, 2, 1])
-        scores = tf.multiply(cnn_output, self.target_embeddings)
-        scores = tf.reduce_sum(scores, 1)
-        scores = tf.squeeze(scores, axis=2)
-        losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=scores, labels=self.target_labels)
-        return tf.reduce_mean(tf.reduce_sum(losses, 1))
+        scores = tf.squeeze(self.res)
+
+        with tf.variable_scope('classifier_hidden'):
+            weights = tf.get_variable(
+                name="weights",
+                shape=[self.embed_dim, 100],
+                initializer=tf.truncated_normal_initializer(stddev=1e-2, dtype=tf.float32),
+                dtype=tf.float32)
+
+            biases = tf.get_variable(
+                name="biases",
+                shape=[100],
+                initializer=tf.constant_initializer(0.0, dtype=tf.float32),
+                dtype=tf.float32)
+
+            hidden1_out = tf.nn.bias_add(tf.matmul(scores, weights), biases)
+            hidden1_out = tf.nn.tanh(hidden1_out)
+
+        with tf.variable_scope('classifier_output'):
+            weights = tf.get_variable(
+                name="weights",
+                shape=[100, 2],
+                initializer=tf.truncated_normal_initializer(stddev=1e-2, dtype=tf.float32),
+                dtype=tf.float32)
+
+            biases = tf.get_variable(
+                name="biases",
+                shape=[2],
+                initializer=tf.constant_initializer(0.0, dtype=tf.float32),
+                dtype=tf.float32)
+
+            # Un-normalized logits
+            self.logits = tf.nn.bias_add(tf.matmul(hidden1_out, weights), biases)
+            self.target_one_hot = tf.one_hot(self.target_labels, 2)
+
+
+        losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.target_one_hot)
+        return tf.reduce_mean(losses)
+
+    def accuracy(self):
+        '''
+        Return the accuracy
+        '''
+        classifier_predictions = tf.argmax(self.logits, 1, name="predictions")
+        correct_predictions = tf.equal(classifier_predictions, tf.argmax(self.target_one_hot, 1))
+        accuracy_op = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
+        return accuracy_op

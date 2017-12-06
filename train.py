@@ -5,7 +5,7 @@ from util import *
 from models.CNNEmbed import CNNEmbed
 from models.SentimentClassifier import SentimentClassifier
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 
 def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
@@ -109,11 +109,11 @@ def main(args):
     train_labels_sup, test_labels_sup = get_sup_data(train_data_indices, test_data_indices, train_labels, test_labels,
                  unlabeled_class, split_class, fixed_length, max_doc_len, args.num_classes, zero_vector_index)
 
-    ###########################################Embedding learning Graph#########################################
+    ####################################################################################
     doc2vec_graph = tf.Graph()
     with doc2vec_graph.as_default(), tf.device("/gpu:0"):
         indices_data_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, None])
-        indices_target_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, pos_words_num + neg_words_num])
+
 
         embedding = tf.get_variable("embedding", [vector_up.shape[0], embed_dim], dtype=tf.float32, trainable=True)
         assign_embedding_op = tf.assign(embedding, vector_up)
@@ -121,21 +121,19 @@ def main(args):
         inputs = tf.expand_dims(inputs, 3)
         inputs = tf.transpose(inputs, [0, 2, 1, 3])
 
-        targets_embeds = tf.gather(embedding, indices_target_placeholder)
-        targets_embeds = tf.expand_dims(targets_embeds, 3)
-        targets_embeds = tf.transpose(targets_embeds, [0, 2, 1, 3])
-
-        target_place_holder = tf.placeholder(tf.float32, [None, pos_words_num + neg_words_num])
+        target_place_holder = tf.placeholder(tf.int32, [None])
         # Placeholder for dropout
         keep_prob_placeholder = tf.placeholder(dtype=tf.float32, name='dropout_rate')
 
         # build model
-        _docCNN = CNNEmbed(inputs, targets_embeds, target_place_holder, keep_prob_placeholder, max_doc_len, embed_dim,
+        _docCNN = CNNEmbed(inputs, target_place_holder, keep_prob_placeholder, max_doc_len, embed_dim,
                            num_layers, num_filters, num_residual, k_max)
 
         global_step = tf.Variable(0, trainable=False)
 
         loss = _docCNN.loss()
+
+        acc = _docCNN.accuracy()
 
         # input of the test (supervised learning) process
         test_obj_cal_output = tf.squeeze(_docCNN.res)
@@ -152,144 +150,71 @@ def main(args):
         train_init_op_docCNN = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
-    ###########################################Classifier Graph######################################
-    classifier_graph = tf.Graph()
-    with classifier_graph.as_default(), tf.device('/gpu:0'):
-        classifier_data_place_holder = tf.placeholder(tf.float32, [batch_size, embed_dim],
-                                                      name="classifier_place_holder")
-        classifier_label_place_holder = tf.placeholder(tf.float32, [batch_size])
-        # Creating the classifier object.
-        classifier = SentimentClassifier(classifier_data_place_holder, classifier_label_place_holder, embed_dim,
-                                         batch_size, args.num_classes)
-        classifier_loss_op = classifier.loss()
-
-        classifier_predictions = tf.argmax(classifier.logits, 1, name="predictions")
-        correct_predictions = tf.equal(classifier_predictions, tf.argmax(classifier.labels_one_hot, 1))
-        train_accuracy_op = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="train_accuracy")
-        test_accuracy_op = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="test_accuracy")
-
-        classifier_optimizer = tf.train.MomentumOptimizer(0.0008, 0.9)
-        classifier_grads_and_vars = classifier_optimizer.compute_gradients(classifier_loss_op)
-        classifier_train_op = classifier_optimizer.apply_gradients(classifier_grads_and_vars)
-
-        session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-        train_init_op_classifier = tf.global_variables_initializer()
-        sess_classifier = tf.Session(config=session_conf)
 
     ###########################################Training######################################
     # Initializing the variables.
     sess_docCNN.run(train_init_op_docCNN)
-    sess_classifier.run(train_init_op_classifier)
     sess_docCNN.run(assign_embedding_op)
     overall_highest = 0
-
-    batch_target = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
-
-    # Batch generator
-    batch_generator = BatchGenerator(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
-                                     context_len, vector_up.shape[0] - 1, batch_size)
 
     itr = 0
     # Training Loop
     while itr < max_iter:
-        data_size = batch_generator.get_data_size()
+        data_size = len(train_data_indices_sup)
         batch_per_epoch = data_size / batch_size
+        train_shuffle_index = np.random.permutation(data_size)
         print('Number of batches: {}'.format(batch_per_epoch))
         sess_docCNN.run(global_step.assign(itr))
-        batch_generator.generate_training_batches()
         train_times = []
-        placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
-                        keep_prob_placeholder]
+
+        total_train_acc = 0.
+        total_train_loss = 0.
+        total_test_acc = 0.
+
+        #print('Average train time: {:.5f}'.format(np.mean(train_times)))
+
         for i in range(batch_per_epoch):
+            index = train_shuffle_index[
+                np.arange(i * batch_size, min((i + 1) * batch_size, data_size))]
+            train_data_inds = train_data_indices_sup[index]
+            train_target_inds = train_labels_sup[index]
+
+            test_data_inds = test_data_indices_sup[index]
+            test_target_inds = test_labels_sup[index]
             t1 = time.time()
-            ret_val = batch_generator.get_data()
-            data_inds, target_inds = ret_val
-            training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob)
+            feed_dict = {indices_data_placeholder: train_data_inds,
+                         target_place_holder: train_target_inds, keep_prob_placeholder: keep_prob}
+            _, train_acc, train_loss = sess_docCNN.run([train_op, acc, loss], feed_dict)
             train_times.append(time.time() - t1)
 
+            total_train_acc += train_acc
+            total_train_loss += train_loss
+
+            feed_dict = {indices_data_placeholder: test_data_inds,
+                         target_place_holder: test_target_inds, keep_prob_placeholder: 1}
+            test_acc = sess_docCNN.run([acc], feed_dict)
+
+            total_test_acc += test_acc
+
             if i % 100 == 0:
-                feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
-                             target_place_holder: batch_target, keep_prob_placeholder: 1}
-                loss_out = sess_docCNN.run([loss], feed_dict)
-                print('Iteration: {}, batch: {}, loss: {}'.format(itr, i, loss_out))
+                print('Iteration: {}, batch: {}, loss: {}, train acc: {}, test acc: {}'.format(itr, i,train_loss, train_acc,
+                                                                                               test_acc))
                 print('Average train time: {:.5f}'.format(np.mean(train_times)))
                 print('-----------------------------------------------')
-                train_times = []
 
-        print('overall highest accuracy: {}'.format(overall_highest))
+        train_accuracy = total_train_acc / batch_per_epoch
+        test_accuracy =total_test_acc / batch_per_epoch
 
-        # Training the classifier from scratch.
-        if itr > 0 and itr % 10 == 0:
-            print('training a new classifier')
-            # Forward pass to get the embeddings
-            sess_classifier.run(train_init_op_classifier)
-            train_data_size = len(train_data_indices_sup)
-            test_data_size = len(test_data_indices_sup)
+        if test_accuracy > overall_highest:
+            overall_highest = test_accuracy
 
-            train_data_doc2vec_sup = np.zeros([train_data_size, embed_dim])
-            test_data_doc2vec_sup = np.zeros([test_data_size, embed_dim])
+        print('iter: {}train accuracy: {}, test accuracy: {}'.
+              format(itr, train_accuracy, test_accuracy))
 
-            for i in range(train_data_size):
-                classifier_train_inds = np.expand_dims(train_data_indices_sup[i], axis=0)
+        print('Overall highest test accuracy is {}'.format(overall_highest))
 
-                feed_dict_train = {indices_data_placeholder: classifier_train_inds, keep_prob_placeholder: 1}
-                train_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_train)
-                train_data_doc2vec_sup[i, :] = train_doc2vec
-
-            for i in range(test_data_size):
-                classifier_test_data = np.expand_dims(test_data_indices_sup[i], axis=0)
-
-                feed_dict_test = {indices_data_placeholder: classifier_test_data, keep_prob_placeholder: 1}
-                test_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_test)
-                test_data_doc2vec_sup[i, :] = test_doc2vec
-
-            acc_test_best = 0
-
-            classifier_train_num_batch = train_data_size / batch_size
-            classifier_test_num_batch = test_data_size / batch_size
-
-            for classifier_iter in range(classifier_max_iter):
-                classifier_train_shuffle_index = np.random.permutation(train_data_size)
-                acc_train = 0
-                acc_test = 0
-                loss_out = 0
-
-                for i in range(classifier_train_num_batch):
-                    index = classifier_train_shuffle_index[
-                        np.arange(i * batch_size, min((i + 1) * batch_size, train_data_size))]
-
-                    classifier_train_inds = train_data_doc2vec_sup[index, :]
-                    classifier_train_labels = train_labels_sup[index]
-
-                    feed_dict_train = {classifier_data_place_holder: classifier_train_inds,
-                                       classifier_label_place_holder: classifier_train_labels}
-                    _, _acc_train, _loss_out = sess_classifier.run(
-                        [classifier_train_op, train_accuracy_op, classifier_loss_op], feed_dict_train)
-
-                    loss_out += _loss_out
-                    acc_train += _acc_train
-
-                for i in range(classifier_test_num_batch):
-                    index = np.arange(i * batch_size, min((i + 1) * batch_size, test_data_size))
-                    classifier_test_data = test_data_doc2vec_sup[index, :]
-                    classifier_test_labels = test_labels_sup[index]
-                    feed_dict_test = {classifier_data_place_holder: classifier_test_data,
-                                      classifier_label_place_holder: classifier_test_labels}
-                    _acc_test = sess_classifier.run([test_accuracy_op], feed_dict_test)
-
-                    if isinstance(_acc_test, list):
-                        _acc_test = _acc_test[0]
-                    acc_test += _acc_test
-
-                train_accuracy = acc_train / classifier_train_num_batch
-                test_accuracy = acc_test / classifier_test_num_batch
-                print('iter: {}, loss: {}, train accuracy: {}, test accuracy: {}'.
-                      format(classifier_iter, loss_out, train_accuracy, test_accuracy))
-                if test_accuracy > acc_test_best:
-                    acc_test_best = test_accuracy
-            print('best test acc is: {}'.format(acc_test_best))
-            if acc_test_best > overall_highest:
-                overall_highest = acc_test_best
+        print('**********************************************')
+        print('\n')
 
         if itr % 10 == 0 and itr > 0:
             print('Saving model at {}'.format(itr))
