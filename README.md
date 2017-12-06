@@ -86,9 +86,8 @@ from the IMDB website, labelled by their sentiment score.
 
 ### Amazon Fine Food Reviews
 The AFFR dataset was obtained from [here](https://www.kaggle.com/snap/amazon-fine-food-reviews). The original dataset is
-highly inbalanced.
-
-We also provide a prepared compressed data for IMDB and AFFR datasets which can be donloaded from [here](https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz). To get it running, one also needs to copy uncompressed GoogleNews-vectors-negative300.bin file to data-dir/word2vec.
+highly inbalanced and contains many duplicates. As such, our uploaded dataset removes all duplicates and balances all
+the classes.
 
 <a name="dataset"/>
 
