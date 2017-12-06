@@ -5,7 +5,6 @@ from util import *
 from models.CNNEmbed import CNNEmbed
 from models.SentimentClassifier import SentimentClassifier
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
