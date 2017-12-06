@@ -110,7 +110,7 @@ cp GoogleNews-vectors-negative300.bin $DATA_DIR/word2vec/
 
 Because the pre-processing takes a long time, we store the pre-processed files in a cache directory, which you will need
 to create and provide to the `--cache-dir` argument. You will also need to create a directory to store the Tensorflow
-models and provide to the `--checkpoint-dir` argument.
+models and provide to the `--checkpoint-dir` argument. By default, they are set to be `./cache` and `./latest_model`.
 
 Run the following command to reproduce the IMDB results:
 ```bash
