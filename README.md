@@ -62,18 +62,17 @@ Furthermore, we used the following libraries:
 <a name="dataset"/>
 
 ## Dataset
-To run the model, download the dataset from here and extract them to a `data` folder. The directory structure is as
-follows:
+To run the model, download the dataset from [here](https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz)
+and extract them to a `data` folder. You should structure your `data` directory as follows:
 ```
 data
   ├─ imdb_sentiment
   │   └─ imdb_sentiment.mat				
   ├─ amazon_food				
-  │   ├─ train_data.pkl
-  │   └─ test_data.pkl
+  │   ├─ amazon_train_data.pkl
+  │   └─ amazon_test_data.pkl
   └─ word2vec
-      ├─ GoogleNews-vectors-negative300.mat
-      └─ dict.txt
+      └─ GoogleNews-vectors-negative300.bin
 ```
 Provide the path to the `data` folder as the argument to `--data-dir` when running `train.py`.
 
@@ -97,3 +96,7 @@ Run the following command to reproduce the IMDB results:
 ```bash
 python train.py 
 ```
+
+Because the pre-processing takes a long time, we store the pre-processed files in a cache directory, which you will need
+to create and provide to the `--cache-dir` argument. You will also need to create a directory to store the tensorflow
+models and provide to the `--checkpoint-dir` argument.

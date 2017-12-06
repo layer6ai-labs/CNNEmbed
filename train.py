@@ -72,12 +72,11 @@ def main(args):
 
     classifier_max_iter = 500
 
-    cache_dir = args.cache_dir + '_' + args.dataset
-    vector_up_fn = os.path.join(cache_dir, 'vector_up.npy')
-    train_data_inds_fn = os.path.join(cache_dir, 'train_data_indices.npy')
-    train_labels_fn = os.path.join(cache_dir, 'train_labels.npy')
-    test_data_indices_fn = os.path.join(cache_dir, 'test_data_indices.npy')
-    test_labels_fn = os.path.join(cache_dir, 'test_labels.npy')
+    vector_up_fn = os.path.join(args.cache_dir, 'vector_up.npy')
+    train_data_inds_fn = os.path.join(args.cache_dir, 'train_data_indices.npy')
+    train_labels_fn = os.path.join(args.cache_dir, 'train_labels.npy')
+    test_data_indices_fn = os.path.join(args.cache_dir, 'test_data_indices.npy')
+    test_labels_fn = os.path.join(args.cache_dir, 'test_labels.npy')
 
     ###########################################Preprocessing#########################################
     if not args.preprocessing:

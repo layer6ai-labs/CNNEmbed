@@ -173,10 +173,10 @@ def get_data_amazon(data_path, max_doc_len, fixed_length=True):
     # Read pre-trained word2vec vectors and dictionary
     word_vectors, word_to_index = load_word2vec(data_path)
 
-    with open(os.path.join(data_path, 'amazon_food/train_data.pkl')) as train_data_fn:
+    with open(os.path.join(data_path, 'amazon_food/amazon_train_data.pkl')) as train_data_fn:
         train_data = cPickle.load(train_data_fn)
 
-    with open(os.path.join(data_path, 'amazon_food/test_data.pkl')) as test_data_fn:
+    with open(os.path.join(data_path, 'amazon_food/amazon_test_data.pkl')) as test_data_fn:
         test_data = cPickle.load(test_data_fn)
 
     train_text = train_data[0]
