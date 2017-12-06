@@ -94,7 +94,7 @@ the classes.
 wget https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz -O /tmp/CNNEmbedData.tar.gz
 cd /tmp/
 tar -zxvf CNNEmbedData.tar.gz
-mv CNNEmbedData $DATA_DIR
+mv CNNEmbedData/* $DATA_DIR
 ```
 Download the pre-trained word2vec embeddings [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing). 
 Uncompress it and copy the binary file to the data directory.
@@ -114,10 +114,11 @@ models and provide to the `--checkpoint-dir` argument. By default, they are set 
 
 Run the following command to reproduce the IMDB results:
 ```bash
-python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 \ 
---num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 \ 
+python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 \
+--num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 \
 --data-dir=$DATA_DIR --preprocessing 
 ```
 Notes:
 * By default, both document embedding learning and classifier happen on single GPU.
 * On our environment (described above), after 40 epoches (approximately 45 minutes), the classifier gets 90% accuracy on test dataset.
+* If `train.py` has been run once and cached data are in the `--cache-dir`, removing `--preprocessing` parameter from train command would make it much faster. However, you **HAVE TO** redo the preprocessing whenever you want to change to a different dataset or model architecture.
