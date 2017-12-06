@@ -88,13 +88,14 @@ from the IMDB website, labelled by their sentiment score.
 The AFFR dataset was obtained from [here](https://www.kaggle.com/snap/amazon-fine-food-reviews). The original dataset is
 highly inbalanced.
 
+We also provide a prepared compressed data for IMDB and AFFR datasets which can be donloaded from [here](https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz). To get it running, one also needs to copy uncompressed GoogleNews-vectors-negative300.bin file to data-dir/word2vec.
 
 <a name="dataset"/>
 
 ## Training
 Run the following command to reproduce the IMDB results:
 ```bash
-python train.py 
+python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 --num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 --data-dir=$DATA_DIR --preprocessing 
 ```
 
 Because the pre-processing takes a long time, we store the pre-processed files in a cache directory, which you will need

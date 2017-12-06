@@ -47,7 +47,7 @@ class CNNEmbed(object):
 
         prev_layer = self.input_data
         res_input = None
-        std = np.sqrt(2. / (1 * 4 * self.num_filters))
+        std = np.sqrt(2. / (1 * 5 * self.num_filters))
 
         for i in range(self.num_layers - 1):
             with tf.variable_scope('conv_{}'.format(i)):
@@ -60,25 +60,27 @@ class CNNEmbed(object):
                     filter_width = 5
                     in_chans = self.num_filters
 
+                # Dropout layer
+                prev_layer = tf.nn.dropout(prev_layer, keep_prob=self.keep_prob)
+
+                std = np.sqrt(2. / (1 * 5 * self.num_filters))
                 conv_w = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'w_' + str(i), std)
                 conv_v = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'v_' + str(i), std)
 
-                # Residual connections
-                if self.residual_skip and (i + 1) % self.residual_skip == 0 and res_input is not None:
-                    conv_w += res_input
-                    conv_v += res_input
-
-                # Adding the gating.
+                # Adding the gatting.
                 gated_conv = tf.multiply(conv_w, tf.sigmoid(conv_v))
 
-                # Dropout layer
-                gated_conv = tf.nn.dropout(gated_conv, keep_prob=self.keep_prob)
-                prev_layer = gated_conv
+                # Residual connections
+                if self.residual_skip and (i + 1) % self.residual_skip == 0 and res_input is not None:
+                    gated_conv = (gated_conv + res_input) * tf.sqrt(0.5)
 
                 if self.residual_skip and i == 0:
                     res_input = gated_conv
                 elif self.residual_skip and (i + 1) % self.residual_skip == 0:
                     res_input = gated_conv
+
+                prev_layer = gated_conv
+
 
         # Final fully connected block.
         with tf.variable_scope('fully_connected'):
