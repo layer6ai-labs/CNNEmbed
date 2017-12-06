@@ -112,8 +112,13 @@ models and provide to the `--checkpoint-dir` argument.
 
 For simplicity purposes, we create three temporary folders to store the cached data and tensorflow models.
 
+```bash
+git clone git@github.com:layer6ai-labs/CNNEmbed.git
+cd CNNEmbed
+```
+
 
 Run the following command to reproduce the IMDB results:
 ```bash
-python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 --num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 --data-dir=$DATA_DIR --preprocessing 
+python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers=4 --num-positive-words=10 --num-negative-words=50 --num-residual=2 --num-classes=2 --dataset=imdb --model=CNN_topk --top-k=3 --max-iter=100 --data-dir=$CNNEMBED_DATA_DIR --preprocessing 
 ```
