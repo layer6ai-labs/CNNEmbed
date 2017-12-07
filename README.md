@@ -120,5 +120,5 @@ python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers
 ```
 Notes:
 * By default, both document embedding learning and classifier happen on single GPU.
-* On our environment (described above), after 40 epoches (approximately 45 minutes), the classifier gets 90% accuracy on test dataset.
+* On our environment (described above), after 30 epoches (approximately 6 hours), the classifier gets 90% accuracy on test dataset.
 * If `train.py` has been run once and cached data are in the `--cache-dir`, removing `--preprocessing` parameter from train command would make it much faster. However, you **HAVE TO** redo the preprocessing whenever you want to change to a different dataset or model architecture.
