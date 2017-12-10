@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import time
-
+import pdb
 
 def pad_zeros(data_indices, zero_ind, max_doc_len):
     """
@@ -58,7 +58,7 @@ def get_sup_data(train_data_indices, test_data_indices, train_labels, test_label
         train_data_indices_sup = train_data_indices[I]
         test_data_indices_sup = test_data_indices[J]
         if fixed_length:
-            train_data_indices_sup = pad_zeros(train_data_indices_sup, zero_vector_index, max_doc_len)
+            #train_data_indices_sup = pad_zeros(train_data_indices_sup, zero_vector_index, max_doc_len)
             test_data_indices_sup = pad_zeros(test_data_indices_sup, zero_vector_index, max_doc_len)
         train_labels_sup = train_labels[I]
         test_labels_sup = test_labels[J]
@@ -86,22 +86,19 @@ class BatchGenerator(object):
     document.
     """
 
-    def __init__(self, training_inds, num_pos_exs, num_neg_exs, max_doc_len, context_len, vocab_size, batch_size):
+    def __init__(self, training_inds, training_labels, max_doc_len, context_len, vocab_size, batch_size):
         """
         Create a batch generator.
 
         Args:
             training_inds (list): List of documents, each one represented as a list of indices
-            num_pos_exs (int): Number of words forward to predict
-            num_neg_exs (int): Number of negative samples
+            training_labels (list): List of sentiment labels
             max_doc_len (int): Length of each document
             context_len (int): Length of the minimum context to give for each training instance.
             vocab_size (int): Vocabulary size
             batch_size (int): Batch size
         """
 
-        self.num_pos_exs = num_pos_exs
-        self.num_neg_exs = num_neg_exs
         self.max_doc_len = max_doc_len
         self.context_len = context_len
         self.vocab_size = vocab_size
@@ -109,7 +106,8 @@ class BatchGenerator(object):
         self.counter = 0
 
         # Remove the documents that are too short.
-        self.training_inds = self.remove_short_docs(training_inds)
+        self.training_inds = training_inds
+        self.training_lbls = training_labels
 
     def get_data_size(self):
         '''
@@ -117,28 +115,6 @@ class BatchGenerator(object):
         '''
 
         return len(self.training_inds)
-
-    def remove_short_docs(self, training_inds):
-        '''
-        Remove the documents from the training indices that are less than the context length.
-
-        Args:
-            training_inds (list): List of documents, each one represented as a list of indices
-
-        Returns:
-            Same list of documents, but with the documents that are too short removed.
-        '''
-
-        skipped_docs = 0
-        new_train_inds = []
-        for doc in training_inds:
-            if len(doc) >= self.num_pos_exs + 1:
-                new_train_inds.append(doc)
-            else:
-                skipped_docs += 1
-
-        print('Number of skipped documents: {}'.format(skipped_docs))
-        return np.array(new_train_inds)
 
     def get_data(self):
         """
@@ -148,7 +124,7 @@ class BatchGenerator(object):
         if self.counter + self.batch_size <= len(self.shuffle_indices):
             inds = self.shuffle_indices[self.counter:self.counter + self.batch_size]
             self.counter += self.batch_size
-            return self.training_inds_with_samples[inds, :], self.target_with_samples[inds, :]
+            return self.training_inds_with_samples[inds, :], self.target_with_samples[inds]
         else:
             return None
 
@@ -166,27 +142,18 @@ class BatchGenerator(object):
         num_resamples = 0
         for i in range(len(self.training_inds)):
             dat = self.training_inds[i]
-            if len(dat) < self.context_len + self.num_pos_exs:
-                pos_inds = dat[-self.num_pos_exs:]
-                t_ind = len(dat) - self.num_pos_exs
-                context_inds = set(dat)
+            tar = self.training_lbls[i]
+            if len(dat) <= self.context_len:
+                t_ind = len(dat)
             else:
-                forward_inds = range(self.context_len, min(len(dat), self.max_doc_len) - self.num_pos_exs + 1)
+                forward_inds = range(self.context_len, min(len(dat), self.max_doc_len))
                 t_ind = np.random.choice(forward_inds)
-                pos_inds = dat[t_ind:t_ind+self.num_pos_exs]
-                context_inds = set(dat[:t_ind + self.num_pos_exs])
-
-            # Doing the negative sampling.
-            samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
-            while context_inds.intersection(set(samples)):
-                samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
-                num_resamples += 1
 
             # Pad with zeros at the beginning
             tmp = dat[:t_ind]
             train_inds = [(self.vocab_size - 1) for _ in range(self.max_doc_len - len(tmp))] + tmp
             self.training_inds_with_samples.append(train_inds)
-            self.target_with_samples.append(np.concatenate((pos_inds, samples)))
+            self.target_with_samples.append(tar)
 
         self.training_inds_with_samples = np.array(self.training_inds_with_samples)
         self.target_with_samples = np.array(self.target_with_samples)

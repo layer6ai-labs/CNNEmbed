@@ -5,8 +5,8 @@ from util import *
 from models.CNNEmbed import CNNEmbed
 from models.SentimentClassifier import SentimentClassifier
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+import pdb
 
 def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
     """
@@ -69,8 +69,7 @@ def main(args):
         fixed_length = False
         if args.model == 'CNN_topk':
             k_max = args.top_k
-
-    classifier_max_iter = 500
+    fixed_length = True
 
     cache_dir = args.cache_dir + '_' + args.dataset
     vector_up_fn = os.path.join(cache_dir, 'vector_up.npy')
@@ -112,7 +111,7 @@ def main(args):
     ####################################################################################
     doc2vec_graph = tf.Graph()
     with doc2vec_graph.as_default(), tf.device("/gpu:0"):
-        indices_data_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, None])
+        indices_data_placeholder = tf.placeholder(dtype=tf.int32, shape=[batch_size, max_doc_len])
 
 
         embedding = tf.get_variable("embedding", [vector_up.shape[0], embed_dim], dtype=tf.float32, trainable=True)
@@ -121,7 +120,7 @@ def main(args):
         inputs = tf.expand_dims(inputs, 3)
         inputs = tf.transpose(inputs, [0, 2, 1, 3])
 
-        target_place_holder = tf.placeholder(tf.int32, [None])
+        target_place_holder = tf.placeholder(tf.int32, [batch_size])
         # Placeholder for dropout
         keep_prob_placeholder = tf.placeholder(dtype=tf.float32, name='dropout_rate')
 
@@ -140,7 +139,7 @@ def main(args):
 
         # setting the learning rate
         # Not using learning rate decay
-        learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, sys.maxint, 0.99, staircase=True)
+        learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, 10, 0.5, staircase=True)
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate_t)
         grads_and_vars = optimizer.compute_gradients(loss)
         train_op = optimizer.apply_gradients(grads_and_vars)
@@ -152,19 +151,23 @@ def main(args):
 
 
     ###########################################Training######################################
+
     # Initializing the variables.
     sess_docCNN.run(train_init_op_docCNN)
     sess_docCNN.run(assign_embedding_op)
     overall_highest = 0
+
+    # Batch generator
+    batch_generator = BatchGenerator(train_data_indices_sup, train_labels_sup, max_doc_len, context_len, vector_up.shape[0] - 1, batch_size)
 
     itr = 0
     # Training Loop
     while itr < max_iter:
         data_size = len(train_data_indices_sup)
         batch_per_epoch = data_size / batch_size
-        train_shuffle_index = np.random.permutation(data_size)
         print('Number of batches: {}'.format(batch_per_epoch))
         sess_docCNN.run(global_step.assign(itr))
+        batch_generator.generate_training_batches()
         train_times = []
 
         total_train_acc = 0.
@@ -174,13 +177,8 @@ def main(args):
         #print('Average train time: {:.5f}'.format(np.mean(train_times)))
 
         for i in range(batch_per_epoch):
-            index = train_shuffle_index[
-                np.arange(i * batch_size, min((i + 1) * batch_size, data_size))]
-            train_data_inds = train_data_indices_sup[index]
-            train_target_inds = train_labels_sup[index]
-
-            test_data_inds = test_data_indices_sup[index]
-            test_target_inds = test_labels_sup[index]
+            ret_val = batch_generator.get_data()
+            train_data_inds, train_target_inds = ret_val
             t1 = time.time()
             feed_dict = {indices_data_placeholder: train_data_inds,
                          target_place_holder: train_target_inds, keep_prob_placeholder: keep_prob}
@@ -190,17 +188,24 @@ def main(args):
             total_train_acc += train_acc
             total_train_loss += train_loss
 
+            if i % 100 == 0:
+                print('Iteration: {}, batch: {}, loss: {}, train acc: {}'.format(itr, i,train_loss, train_acc))
+                print('Average train time: {:.5f}'.format(np.mean(train_times)))
+                print('-----------------------------------------------')
+
+        for i in range(batch_per_epoch):
+            index = np.arange(i * batch_size, min((i + 1) * batch_size, data_size))
+
+            test_data_inds = test_data_indices_sup[index]
+            test_target_inds = test_labels_sup[index]
+
             feed_dict = {indices_data_placeholder: test_data_inds,
                          target_place_holder: test_target_inds, keep_prob_placeholder: 1}
-            test_acc = sess_docCNN.run([acc], feed_dict)
+            test_acc = sess_docCNN.run(acc, feed_dict)
 
             total_test_acc += test_acc
 
-            if i % 100 == 0:
-                print('Iteration: {}, batch: {}, loss: {}, train acc: {}, test acc: {}'.format(itr, i,train_loss, train_acc,
-                                                                                               test_acc))
-                print('Average train time: {:.5f}'.format(np.mean(train_times)))
-                print('-----------------------------------------------')
+
 
         train_accuracy = total_train_acc / batch_per_epoch
         test_accuracy =total_test_acc / batch_per_epoch
