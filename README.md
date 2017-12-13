@@ -126,9 +126,9 @@ Notes:
 ## Experiment Results
 
 <p align="center">
-<a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/unsp_loss.png" width="75%"></a>
+<a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/training_loss.png" width="70%"></a>
 </p>
 
 <p align="center">
-<a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/Sentiment_Classification.png" width="75%"></a>
+<a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/validation_classification_acc.png" width="70%"></a>
 </p>
