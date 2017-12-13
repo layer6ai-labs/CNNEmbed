@@ -122,3 +122,13 @@ Notes:
 * By default, both document embedding learning and classifier happen on single GPU.
 * On our environment (described above), after 30 epoches (approximately 6 hours), the classifier gets 90% accuracy on test dataset.
 * If `train.py` has been run once and cached data are in the `--cache-dir`, removing `--preprocessing` parameter from train command would make it much faster. However, you **HAVE TO** redo the preprocessing whenever you want to change to a different dataset or model architecture.
+
+## Experiment Results
+
+<p align="center">
+<a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/unsp_loss.png" width="75%"></a>
+</p>
+
+<p align="center">
+<a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/Sentiment_Classification.png" width="75%"></a>
+</p>
