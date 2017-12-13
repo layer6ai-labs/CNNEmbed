@@ -1,6 +1,7 @@
 import os
 import cPickle
 import nltk
+import struct
 import numpy as np
 from scipy.io import loadmat
 
@@ -55,16 +56,32 @@ def load_word2vec(data_path):
         word_to_index (dict): Mapping from words in word2vec to their index in word_vectors.
     """
 
-    word_vectors = loadmat(os.path.join(data_path, 'word2vec/GoogleNews-vectors-negative300.mat'))
-    word_vectors = word_vectors['vectors']
-    with open(os.path.join(data_path, 'word2vec/dict.txt'), 'r') as f:
-        words = f.readlines()
-    words = [word.strip() for word in words]
+    word2vec_f = open(os.path.join(data_path, 'word2vec/GoogleNews-vectors-negative300.bin'), 'rb')
 
-    # Create reverse dict
+    c = None
+    # read the header
+    header = ''
+    while c != '\n':
+        c = word2vec_f.read(1)
+        header += c
+
+    num_vectors, vector_len = (int(x) for x in header.split())
+    word_vectors = np.zeros((num_vectors, vector_len))
     word_to_index = dict()
-    for i in range(len(words)):
-        word_to_index[words[i]] = i
+    float_size = 4  # 32bit float
+
+    for n in range(num_vectors):
+        word = []
+        c = word2vec_f.read(1)
+        while c != ' ':
+            word.append(c)
+            c = word2vec_f.read(1)
+        word = ''.join(word).strip()
+
+        binary_vector = word2vec_f.read(float_size * vector_len)
+        vec = [struct.unpack_from('f', binary_vector, i)[0] for i in xrange(0, len(binary_vector), float_size)]
+        word_vectors[n, :] = np.array(vec)
+        word_to_index[word] = n
 
     return word_vectors, word_to_index
 
@@ -127,6 +144,12 @@ def get_data_imdb(data_path, max_doc_len, fixed_length=True):
         for j in range(len(test_data_indices[i])):
             test_data_indices[i][j] = reverse_index[test_data_indices[i][j]]
 
+    # Convert list to np array
+    train_data_indices = np.array(train_data_indices)
+    train_labels = np.array(train_labels)
+    test_data_indices = np.array(test_data_indices)
+    test_labels = np.array(test_labels)
+
     return input_embeddings, train_data_indices, train_labels, test_data_indices, test_labels
 
 
@@ -150,10 +173,10 @@ def get_data_amazon(data_path, max_doc_len, fixed_length=True):
     # Read pre-trained word2vec vectors and dictionary
     word_vectors, word_to_index = load_word2vec(data_path)
 
-    with open(os.path.join(data_path, 'amazon_food/train_data.pkl')) as train_data_fn:
+    with open(os.path.join(data_path, 'amazon_food/amazon_train_data.pkl')) as train_data_fn:
         train_data = cPickle.load(train_data_fn)
 
-    with open(os.path.join(data_path, 'amazon_food/test_data.pkl')) as test_data_fn:
+    with open(os.path.join(data_path, 'amazon_food/amazon_test_data.pkl')) as test_data_fn:
         test_data = cPickle.load(test_data_fn)
 
     train_text = train_data[0]

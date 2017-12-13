@@ -17,7 +17,7 @@ class SentimentClassifier(object):
         '''
 
         self.input_placeholder = input_placeholder
-        self.labels_one_hot = tf.one_hot(tf.cast(labels_placeholder, dtype=tf.int32), 2)
+        self.labels_one_hot = tf.one_hot(tf.cast(labels_placeholder, dtype=tf.int32), num_classes)
         self.embed_dim = embed_dim
         self.batch_size = batch_size
         self.num_classes = num_classes

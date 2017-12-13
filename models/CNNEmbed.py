@@ -47,7 +47,7 @@ class CNNEmbed(object):
 
         prev_layer = self.input_data
         res_input = None
-        std = np.sqrt(2. / (1 * 4 * self.num_filters))
+        std = np.sqrt(2. / (1 * 5 * self.num_filters))
 
         for i in range(self.num_layers - 1):
             with tf.variable_scope('conv_{}'.format(i)):
@@ -60,33 +60,35 @@ class CNNEmbed(object):
                     filter_width = 5
                     in_chans = self.num_filters
 
+                # Dropout layer
+                prev_layer = tf.nn.dropout(prev_layer, keep_prob=self.keep_prob)
+
+                std = np.sqrt(2. / (1 * 5 * self.num_filters))
                 conv_w = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'w_' + str(i), std)
                 conv_v = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'v_' + str(i), std)
 
-                # Residual connections
-                if self.residual_skip and (i + 1) % self.residual_skip == 0 and res_input is not None:
-                    conv_w += res_input
-                    conv_v += res_input
-
-                # Adding the gating.
+                # Adding the gatting.
                 gated_conv = tf.multiply(conv_w, tf.sigmoid(conv_v))
 
-                # Dropout layer
-                gated_conv = tf.nn.dropout(gated_conv, keep_prob=self.keep_prob)
-                prev_layer = gated_conv
+                # Residual connections
+                if self.residual_skip and (i + 1) % self.residual_skip == 0 and res_input is not None:
+                    gated_conv = (gated_conv + res_input) * tf.sqrt(0.5)
 
                 if self.residual_skip and i == 0:
                     res_input = gated_conv
                 elif self.residual_skip and (i + 1) % self.residual_skip == 0:
                     res_input = gated_conv
 
+                prev_layer = gated_conv
+
+
         # Final fully connected block.
         with tf.variable_scope('fully_connected'):
             if self.k_max:
                 # If we're doing k-max pooling
                 output = tf.nn.top_k(tf.transpose(prev_layer, [0, 1, 3, 2]), self.k_max)[0]
-                output = tf.reshape(output, [-1, 3 * self.num_filters])
-                weights = tf.get_variable(name='weights', shape=[3 * self.num_filters, self.embed_dim],
+                output = tf.reshape(output, [-1, self.k_max * self.num_filters])
+                weights = tf.get_variable(name='weights', shape=[self.k_max * self.num_filters, self.embed_dim],
                                           dtype=tf.float32,
                                           initializer=tf.random_normal_initializer(0.0, std))
                 biases = tf.get_variable(name='biases', shape=[self.embed_dim], dtype=tf.float32,
@@ -106,6 +108,17 @@ class CNNEmbed(object):
     def conv_op(self, fan_in, filter_width, filter_height, in_chans, name, std):
         '''
         Create a convolutional layer.
+
+        Args:
+            fan_in: Input tensor to the convoluational operation.
+            filter_width (int): Width of the conv filter
+            filter_height (int): height of the conv filter
+            in_chans (int): Number of input channels
+            name (str): Name to use for the tensor
+            std (float): Standard deviation used to initialize the tensor values.
+
+        Returns:
+            An output tensor, after applying the convolution operation.
         '''
 
         paddings = [[0, 0], [0, 0], [filter_width / 2, filter_width / 2], [0, 0]]
