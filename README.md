@@ -24,14 +24,12 @@ above. We also include scripts to perform training and evaluation. If you find t
 please cite this paper:
 
 ```
-@article{DBLP:journals/corr/abs-1711-04168,
+@article{liu2017embed
   author    = {Chundi Liu and
                Shunan Zhao and
                Maksims Volkovs},
   title     = {Learning Document Embeddings With CNNs},
-  journal   = {CoRR},
-  volume    = {abs/1711.04168},
-  url       = {http://arxiv.org/abs/1711.04168},
+  journal   = {arXiv:1711.04168},
   year      = {2017}
 }
 ```
