@@ -19,7 +19,7 @@ Authors: [Shunan Zhao](http://www.cs.toronto.edu/~szhao/), [Chundi Liu](https://
 <a name="intro"/>
 
 ## Introduction
-This repository contains the full implementation, in Python, of the CNN-pad and CNN-pool models described in the paper
+This repository contains the full implementation, in Python, of the CNN document embedding models described in the paper
 above. We also include scripts to perform training and evaluation. If you find this model useful in your research, 
 please cite this paper:
 
@@ -31,13 +31,8 @@ please cite this paper:
   title     = {Learning Document Embeddings With CNNs},
   journal   = {CoRR},
   volume    = {abs/1711.04168},
-  year      = {2017},
   url       = {http://arxiv.org/abs/1711.04168},
-  archivePrefix = {arXiv},
-  eprint    = {1711.04168},
-  timestamp = {Fri, 01 Dec 2017 14:22:24 +0100},
-  biburl    = {http://dblp.org/rec/bib/journals/corr/abs-1711-04168},
-  bibsource = {dblp computer science bibliography, http://dblp.org}
+  year      = {2017}
 }
 ```
 
@@ -63,7 +58,7 @@ Furthermore, we used the following libraries:
 
 ## Dataset
 To run the model, download the dataset from [here](https://s3.amazonaws.com/public.layer6.ai/CNNEmbed/CNNEmbedData.tar.gz)
-and extract them to a directory, which I'll refer to as `$DATA_DIR`. You should structure your data directory as follows:
+and extract them to a directory, refered to as `$DATA_DIR`. You should structure your data directory as follows:
 ```
 data
   ├─ imdb_sentiment
@@ -86,8 +81,7 @@ from the IMDB website, labelled by their sentiment score.
 
 ### Amazon Fine Food Reviews
 The AFFR dataset was obtained from [here](https://www.kaggle.com/snap/amazon-fine-food-reviews). The original dataset is
-highly unbalanced and contains many duplicates. As such, our uploaded dataset removes all duplicates and balances all
-the classes.
+highly unbalanced and contains many duplicates. As such, we removed all duplicates and balanced the classes, see our paper for full description of this dataset.
 
 ### Data Preparation
 ```bash
@@ -120,10 +114,12 @@ python train.py --context-len=10 --batch-size=100 --num-filters=900 --num-layers
 ```
 Notes:
 * By default, both document embedding learning and classifier happen on single GPU.
-* On our environment (described above), after 30 epoches (approximately 6 hours), the classifier gets 90% accuracy on test dataset.
+* On our environment (described above), after 30 epochs (approximately 6 hours), the classifier gets 90% accuracy on the IMDB test set.
 * If `train.py` has been run once and cached data are in the `--cache-dir`, removing `--preprocessing` parameter from train command would make it much faster. However, you **HAVE TO** redo the preprocessing whenever you want to change to a different dataset or model architecture.
 
-## Experiment Results
+## IMDB Results
+
+Training loss and validation classification accuracy curves for the IMDB dataset. We train the classifier every 10 epochs and record the best accuracy (upper bound).
 
 <p align="center">
 <a href="https://layer6.ai/"><img src="https://github.com/layer6ai-labs/CNNEmbed/blob/prep/logos/training_loss.png" width="70%"></a>
