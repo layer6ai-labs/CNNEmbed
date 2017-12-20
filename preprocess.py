@@ -11,8 +11,8 @@ def tokenize_sentence(data, data_type, word_to_index, max_doc_len, fixed_length)
     Convert data, an array containing IMDB sentiment data, into a list of indices into the word2vec matrix.
 
     Args:
-        data (numpy.ndarray): An array containing the IMDB sentiment data, as unicode strings.
-        data_type (str): Data to use, either 'amazon' or 'imdb'
+        data: An array containing the IMDB sentiment data, as unicode strings.
+        data_type (str): Data to use, 'imdb', 'amazon', or 'wikipedia'
         word_to_index (dict): Dict that maps words to their index in the word2vec matrix
         max_doc_len (int): Maximum length of input, if using CNN-pad
         fixed_length (bool): True if using CNN-pad
@@ -29,8 +29,10 @@ def tokenize_sentence(data, data_type, word_to_index, max_doc_len, fixed_length)
         if data_type == 'imdb':
             sentence = sentence[0][0]
             tokens = nltk.word_tokenize(sentence)
-        else:
+        elif data_type == 'amazon':
             tokens = nltk.word_tokenize(' '.join(tknzr.tokenize(sentence)))
+        else:
+            tokens = nltk.word_tokenize(' '.join(tknzr.tokenize(sentence.decode('latin-1'))))
 
         tokenized_sentence = [word.lower() for word in tokens]
         tokenized_sentence = [word for word in tokenized_sentence if word in word_to_index]
@@ -213,5 +215,94 @@ def get_data_amazon(data_path, max_doc_len, fixed_length=True):
     test_data_indices = data_indices[80000:]
     test_labels = np.array(test_score)
     test_labels -= 1
+
+    return input_embeddings, train_data_indices, train_labels, test_data_indices, test_labels
+
+
+def get_data_wikipedia(data_path, max_doc_len, fixed_length=True):
+    """
+    Return the Wikipedia test and training data as a list of lists of indices.
+
+    Args:
+        data_path (str): Path to the directory containing the data.
+        max_doc_len (int): Maximum length of input, if using CNN-pad
+        fixed_length (bool): True if using CNN-pad
+
+    Returns:
+        input_embeddings (numpy.ndarray): Input word embeddings to the CNN
+        train_data_indices (list): list of list of indices to word2vec, for training
+        train_labels (numpy.ndarray): 1D array of labels, for training
+        test_data_indices (list): list of list of indices to word2vec, for testing
+        test_labels (numpy.ndarray): 1D array of labels, for training
+    """
+
+    # Documents that have length zero. We'll keep these for now.
+    skip_inds = [114767, 136434, 181703, 301236, 55718, 56001, 72101, 99528]
+
+    # Read pre-trained word2vec vectors and dictionary
+    word_vectors, word_to_index = load_word2vec_fast(data_path)
+    data_file = open(os.path.join(data_path, 'wikipedia_100/alldata.txt'), 'r')
+    labels_file = open(os.path.join(data_path, 'wikipedia_100/alldata-label.txt'), 'r')
+    train_data = []
+    train_labels = []
+    test_data = []
+    test_labels = []
+
+    line_num = 1
+    text_line = data_file.readline()
+    label_line = labels_file.readline()
+    while text_line != '':
+        if line_num <= 10000:
+            train_data.append(text_line.strip())
+            train_labels.append(int(label_line.strip()))
+        elif line_num <= 100000:
+            test_data.append(text_line.strip())
+            test_labels.append(int(label_line.strip()))
+        else:
+            train_data.append(text_line.strip())
+            train_labels.append(-1)
+
+        text_line = data_file.readline()
+        label_line = labels_file.readline()
+        line_num += 1
+
+    all_text = train_data + test_data
+    data_indices = tokenize_sentence(all_text, 'wikipedia', word_to_index, max_doc_len, fixed_length)
+    # Create the unique word dict used by the model
+    flatten_data = [item for sublist in data_indices for item in sublist]
+    all_unique_indices = list(set(flatten_data))
+
+    reverse_index = {}
+    for i in range(len(all_unique_indices)):
+        reverse_index[all_unique_indices[i]] = i
+
+    input_embeddings = word_vectors[all_unique_indices]
+    # add an empty to vector and reverse vector
+    input_embeddings = np.vstack([input_embeddings, np.zeros([input_embeddings.shape[1]])])
+    reverse_index[-1] = input_embeddings.shape[0] - 1
+    print('Number of unique words in this dataset is {}'.format(len(input_embeddings)))
+
+    # Convert index from whole vocabulary to local vocabulary
+    for i in range(len(data_indices)):
+        for j in range(len(data_indices[i])):
+            data_indices[i][j] = reverse_index[data_indices[i][j]]
+    data_indices = np.array(data_indices)
+
+    # remap the labels.
+    all_labels = list(set(test_labels))
+    all_labels.sort()
+    class_map = dict()
+
+    ind = 0
+    for c in all_labels:
+        class_map[c] = ind
+        ind += 1
+    class_map[-1] = -1
+
+    # The first 100,000 data points are labelled data, rest is unlabelled
+    train_data_indices = data_indices[:-90000]
+    train_labels = np.array([class_map[x] for x in train_labels])
+    test_data_indices = data_indices[-90000:]
+    test_labels = np.array([class_map[x] for x in test_labels])
 
     return input_embeddings, train_data_indices, train_labels, test_data_indices, test_labels

@@ -36,7 +36,7 @@ def get_sup_data(train_data_indices, test_data_indices, train_labels, test_label
         train_labels: [total num of training data, 1] int numpy array containing all sentiment scores for training reviews.
         test_labels: [total num of testing data, 1] int numpy array containing all sentiment scores for testing reviews.
         unlabeled_class (int): the score representing neutral or unlabeled reviews.
-        split_class (int): the score splitting positive and negative scores.
+        split_class (int): the score splitting positive and negative scores, for sentiment classification tasks.
         fixed_length (bool): if true, truncate and pad all sentences into a same length.
         max_doc_len (int): the length all sentences will be truncated or padded to, when fixed_length is true.
         num_classes (int): the number of classes, for the supervised learning
@@ -73,8 +73,19 @@ def get_sup_data(train_data_indices, test_data_indices, train_labels, test_label
             test_data_indices_sup = np.copy(test_data_indices)
         train_labels_sup = np.copy(train_labels)
         test_labels_sup = np.copy(test_labels)
+    elif num_classes == 100:
+        # For the wikipedia dataset. Unlabelled data is only used for training.
+        I = train_labels != unlabeled_class
+        train_data_indices_sup = train_data_indices[I]
+        if fixed_length:
+            train_data_indices_sup = pad_zeros(train_data_indices_sup, zero_vector_index, max_doc_len)
+            test_data_indices_sup = pad_zeros(test_data_indices, zero_vector_index, max_doc_len)
+        else:
+            test_data_indices_sup = np.copy(test_data_indices)
+        train_labels_sup = train_labels[I]
+        test_labels_sup = np.copy(test_labels)
     else:
-        print("Number of classes has to be 2 or 5!")
+        print("Number of classes has to be 2, 5, or 100!")
         sys.exit()
 
     return train_data_indices_sup, test_data_indices_sup, train_labels_sup, test_labels_sup

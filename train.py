@@ -55,11 +55,15 @@ def main(args):
         max_doc_len = 400
         split_class = 7
         unlabeled_class = 0
-    else:
+    elif args.dataset == 'amazon':
         # Using the amazon dataset
         max_doc_len = 200
         split_class = 3
         unlabeled_class = 2
+    elif args.dataset == 'wikipedia':
+        max_doc_len = 350
+        split_class = None
+        unlabeled_class = -1
 
     if args.model == 'CNN_pad':
         fixed_length = True
@@ -89,8 +93,11 @@ def main(args):
         # Preprocess data
         if args.dataset == 'imdb':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_imdb(data_dir, max_doc_len, fixed_length)
-        else:
+        elif args.dataset == 'amazon':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_amazon(data_dir, max_doc_len, fixed_length)
+        elif args.dataset == 'wikipedia':
+            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = \
+                get_data_wikipedia(data_dir, max_doc_len, fixed_length)
         np.save(vector_up_fn, vector_up)
         np.save(train_data_inds_fn, train_data_indices)
         np.save(train_labels_fn, train_labels)
