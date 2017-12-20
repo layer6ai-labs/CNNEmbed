@@ -88,6 +88,26 @@ def load_word2vec(data_path):
     return word_vectors, word_to_index
 
 
+def load_word2vec_fast(data_path):
+    '''
+    Loading the .mat version of work2vec, which is way faster. Won't be committing this.
+    '''
+
+    word_vectors = loadmat(os.path.join(data_path, 'word2vec/GoogleNews-vectors-negative300.mat'))
+    word_vectors = word_vectors['vectors']
+
+    dict_file = open(os.path.join(data_path, 'word2vec/dict.txt'), 'r')
+    word_to_index = dict()
+    i = 0
+    line = dict_file.readline()
+    while line != '':
+        word_to_index[line.strip()] = i
+        i += 1
+        line = dict_file.readline()
+    dict_file.close()
+    return word_vectors, word_to_index
+
+
 def get_data_imdb(data_path, max_doc_len, fixed_length=True):
     """
     Return the IMDB test and training data as a list of lists of indices.
