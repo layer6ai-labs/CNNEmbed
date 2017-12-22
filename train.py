@@ -61,7 +61,7 @@ def main(args):
         split_class = 3
         unlabeled_class = 2
     elif args.dataset == 'wikipedia':
-        max_doc_len = 350
+        max_doc_len = 500
         split_class = None
         unlabeled_class = -1
 
