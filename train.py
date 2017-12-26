@@ -6,7 +6,6 @@ from models.CNNEmbed import CNNEmbed
 from models.SentimentClassifier import SentimentClassifier
 import os
 
-
 def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
     """
     Do a training pass through a batch of the data.
@@ -231,37 +230,48 @@ def main(args):
             train_data_size = len(train_data_indices_sup)
             test_data_size = len(test_data_indices_sup)
 
-            train_data_doc2vec_sup = np.zeros([train_data_size, embed_dim])
-            test_data_doc2vec_sup = np.zeros([test_data_size, embed_dim])
+            train_data_doc2vec_sup = []
+            test_data_doc2vec_sup = []
 
             for i in range(train_data_size):
+                if len(train_data_indices_sup[i]) < k_max:
+                    continue
                 classifier_train_inds = np.expand_dims(train_data_indices_sup[i], axis=0)
 
                 feed_dict_train = {indices_data_placeholder: classifier_train_inds, keep_prob_placeholder: 1}
                 train_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_train)
-                train_data_doc2vec_sup[i, :] = train_doc2vec
+                train_data_doc2vec_sup.append(train_doc2vec)
+
+            train_data_doc2vec_sup = np.array(train_data_doc2vec_sup)
 
             for i in range(test_data_size):
+                if len(test_data_indices_sup[i]) < k_max:
+                    continue
                 classifier_test_data = np.expand_dims(test_data_indices_sup[i], axis=0)
 
                 feed_dict_test = {indices_data_placeholder: classifier_test_data, keep_prob_placeholder: 1}
                 test_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_test)
-                test_data_doc2vec_sup[i, :] = test_doc2vec
+                test_data_doc2vec_sup.append(test_doc2vec)
+
+            test_data_doc2vec_sup = np.array(test_data_doc2vec_sup)
 
             acc_test_best = 0
 
-            classifier_train_num_batch = train_data_size / batch_size
-            classifier_test_num_batch = test_data_size / batch_size
+            train_data_size_without_short_doc = len(train_data_doc2vec_sup)
+            test_data_size_without_short_doc = len(test_data_doc2vec_sup)
+
+            classifier_train_num_batch = train_data_size_without_short_doc / batch_size
+            classifier_test_num_batch = test_data_size_without_short_doc / batch_size
 
             for classifier_iter in range(classifier_max_iter):
-                classifier_train_shuffle_index = np.random.permutation(train_data_size)
+                classifier_train_shuffle_index = np.random.permutation(train_data_size_without_short_doc)
                 acc_train = 0
                 acc_test = 0
                 loss_out = 0
 
                 for i in range(classifier_train_num_batch):
                     index = classifier_train_shuffle_index[
-                        np.arange(i * batch_size, min((i + 1) * batch_size, train_data_size))]
+                        np.arange(i * batch_size, min((i + 1) * batch_size, train_data_size_without_short_doc))]
 
                     classifier_train_inds = train_data_doc2vec_sup[index, :]
                     classifier_train_labels = train_labels_sup[index]
@@ -275,7 +285,7 @@ def main(args):
                     acc_train += _acc_train
 
                 for i in range(classifier_test_num_batch):
-                    index = np.arange(i * batch_size, min((i + 1) * batch_size, test_data_size))
+                    index = np.arange(i * batch_size, min((i + 1) * batch_size, test_data_size_without_short_doc))
                     classifier_test_data = test_data_doc2vec_sup[index, :]
                     classifier_test_labels = test_labels_sup[index]
                     feed_dict_test = {classifier_data_place_holder: classifier_test_data,

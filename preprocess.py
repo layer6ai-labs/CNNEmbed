@@ -126,7 +126,7 @@ def get_data_imdb(data_path, max_doc_len, fixed_length=True):
     """
 
     # Read pre-trained word2vec vectors and dictionary
-    word_vectors, word_to_index = load_word2vec(data_path)
+    word_vectors, word_to_index = load_word2vec_fast(data_path)
 
     # Read train test data and label
     temp = loadmat(os.path.join(data_path, 'imdb_sentiment/imdb_sentiment.mat'))
@@ -193,7 +193,7 @@ def get_data_amazon(data_path, max_doc_len, fixed_length=True):
     """
 
     # Read pre-trained word2vec vectors and dictionary
-    word_vectors, word_to_index = load_word2vec(data_path)
+    word_vectors, word_to_index = load_word2vec_fast(data_path)
 
     with open(os.path.join(data_path, 'amazon_food/amazon_train_data.pkl')) as train_data_fn:
         train_data = cPickle.load(train_data_fn)
