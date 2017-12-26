@@ -46,6 +46,62 @@ def tokenize_sentence(data, data_type, word_to_index, max_doc_len, fixed_length)
     return tokenized
 
 
+def tokenize_sentence_wikipedia(data, word_embeddings, word_to_index, max_doc_len, fixed_length):
+    """
+    Tokenizing the sentence specifically for the Wikipedia data. This is more difficult.
+
+    :param data:
+    :param word_embeddings:
+    :param word_to_index:
+    :param max_doc_len:
+    :param fixed_length:
+    :return:
+    """
+
+    tokenized = []
+    freqs = dict()
+    tknzr = nltk.tokenize.TweetTokenizer()
+
+    for sentence in data:
+        tokens = nltk.word_tokenize(' '.join(tknzr.tokenize(sentence.decode('latin-1'))))
+        tokens = [word.lower() for word in tokens]
+
+        for tok in tokens:
+            if tok in freqs:
+                freqs[tok] += 1
+            else:
+                freqs[tok] = 1
+
+        tokenized.append(tokens)
+
+    # We only keep tokens that have appeared at least 10 times in the data and map everything else to <unk>.
+    converted_to_indices = []
+    word_to_index['<unk>'] = word_embeddings.shape[0]
+    curr_ind = word_embeddings.shape[0] + 1
+    num_new_tokens = 1
+    for tokens in tokenized:
+        indexed_sen = []
+        for tok in tokens:
+            if freqs[tok] >= 10:
+                if tok in word_to_index:
+                    indexed_sen.append(word_to_index[tok])
+                else:
+                    word_to_index[tok] = curr_ind
+                    indexed_sen.append(curr_ind)
+                    curr_ind += 1
+                    num_new_tokens += 1
+            else:
+                indexed_sen.append(word_to_index['<unk>'])
+
+        if fixed_length and len(indexed_sen) > max_doc_len:
+            indexed_sen = indexed_sen[:max_doc_len]
+
+        converted_to_indices.append(indexed_sen)
+
+    word_embeddings = np.vstack((word_embeddings, np.random.uniform(-1, 1, size=[num_new_tokens, 300])))
+    return converted_to_indices, word_embeddings, word_to_index
+
+
 def load_word2vec(data_path):
     """
     Load the pre-trained word2vec vectors and return them, along with a mapping from words to their index in word2vec.
@@ -256,7 +312,7 @@ def get_data_wikipedia(data_path, max_doc_len, fixed_length=True):
         test_labels (numpy.ndarray): 1D array of labels, for training
     """
 
-    # Documents that have length zero. We'll keep these for now.
+    # Documents that have length zero, after filtering out words not in word2vec. We'll keep these for now.
     skip_inds = [114767, 136434, 181703, 301236, 55718, 56001, 72101, 99528]
 
     # Read pre-trained word2vec vectors and dictionary
@@ -287,7 +343,8 @@ def get_data_wikipedia(data_path, max_doc_len, fixed_length=True):
         line_num += 1
 
     all_text = train_data + test_data
-    data_indices = tokenize_sentence(all_text, 'wikipedia', word_to_index, max_doc_len, fixed_length)
+    data_indices, word_vectors, word_to_index = tokenize_sentence_wikipedia(all_text, word_vectors, word_to_index,
+                                                                            max_doc_len, fixed_length)
     # Create the unique word dict used by the model
     flatten_data = [item for sublist in data_indices for item in sublist]
     all_unique_indices = list(set(flatten_data))
