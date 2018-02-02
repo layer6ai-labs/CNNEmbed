@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
+USE_GATING = True
 
 class CNNEmbed(object):
     '''
@@ -64,11 +65,16 @@ class CNNEmbed(object):
                 prev_layer = tf.nn.dropout(prev_layer, keep_prob=self.keep_prob)
 
                 std = np.sqrt(2. / (1 * 5 * self.num_filters))
-                conv_w = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'w_' + str(i), std)
-                conv_v = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'v_' + str(i), std)
+                if USE_GATING:
+                    conv_w = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'w_' + str(i), std)
+                    conv_v = self.conv_op(prev_layer, filter_width, filter_height, in_chans, 'v_' + str(i), std)
 
-                # Adding the gatting.
-                gated_conv = tf.multiply(conv_w, tf.sigmoid(conv_v))
+                    # Adding the gatting.
+                    gated_conv = tf.multiply(conv_w, tf.sigmoid(conv_v))
+                else:
+                    # remove the gating for this experiment. For simplicity, still using the same variable name.
+                    conv = self.conv_op(prev_layer, filter_width, filter_height, in_chans, str(i), std)
+                    gated_conv = tf.nn.relu(conv)
 
                 # Residual connections
                 if self.residual_skip and (i + 1) % self.residual_skip == 0 and res_input is not None:

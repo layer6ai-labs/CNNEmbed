@@ -60,7 +60,7 @@ def main(args):
         split_class = 3
         unlabeled_class = 2
     elif args.dataset == 'wikipedia':
-        max_doc_len = 500
+        max_doc_len = 600
         split_class = None
         unlabeled_class = -1
 
@@ -193,6 +193,12 @@ def main(args):
     batch_generator = BatchGenerator(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
                                      context_len, vector_up.shape[0] - 1, batch_size)
 
+    # dict to store the accuracy values.
+    if args.accuracy_file:
+        with open(args.accuracy_file, 'r') as f:
+            accs = cPickle.load(f)
+    acc_values = []
+
     itr = 0
     # Training Loop
     while itr < max_iter:
@@ -306,11 +312,17 @@ def main(args):
             if acc_test_best > overall_highest:
                 overall_highest = acc_test_best
 
+            acc_values.append({'acc': acc_test_best, 'epoch': itr})
+
         if itr % 10 == 0 and itr > 0:
             print('Saving model at {}'.format(itr))
             saver.save(sess_docCNN, os.path.join(checkpoint_path, 'model'), global_step=itr)
         itr += 1
 
+    if args.accuracy_file:
+        accs.append(acc_values)
+        with open(args.accuracy_file, 'w') as f:
+            cPickle.dump(accs, f)
 
 if __name__ == '__main__':
 
@@ -339,6 +351,7 @@ if __name__ == '__main__':
     parser.add_argument('--learning-rate', type=float, default=0.0003, help='The learning rate.')
     parser.add_argument('--top-k', type=int, default=0, help='The value of k when performing k-max pooling')
     parser.add_argument('--max-iter', type=int, default=100, help='The maximum number of training iterations.')
+    parser.add_argument('--accuracy-file', type=str, help='File to store the accuracy values.')
 
     args = parser.parse_args()
     main(args)

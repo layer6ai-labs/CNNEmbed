@@ -4,6 +4,7 @@ import nltk
 import struct
 import numpy as np
 from scipy.io import loadmat
+import pdb
 
 
 def tokenize_sentence(data, data_type, word_to_index, max_doc_len, fixed_length):
@@ -82,7 +83,7 @@ def tokenize_sentence_wikipedia(data, word_embeddings, word_to_index, max_doc_le
     for tokens in tokenized:
         indexed_sen = []
         for tok in tokens:
-            if freqs[tok] >= 10:
+            if freqs[tok] >= 9:
                 if tok in word_to_index:
                     indexed_sen.append(word_to_index[tok])
                 else:
