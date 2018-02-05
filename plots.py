@@ -15,8 +15,8 @@ def gating_no_gating_plot():
 
 def num_layers_plot():
 
-    num_layers = [1, 3, 5, 7]
-    accs = [88.18, 89.34, 89.5, 88.6]
+    num_layers = [1, 2, 3, 4, 5, 6, 7]
+    accs = [88.18, 89.03, 89.34, 88.9, 89.5, 89.61, 88.6]
 
     plt.plot(num_layers, accs, marker='o')
     plt.xlabel('Number of convolutional layers')
@@ -25,8 +25,8 @@ def num_layers_plot():
 
 def words_forward_plot():
 
-    words_forward = [1, 5, 7, 10, 15, 20, 30, 40, 50, 60, 70]
-    accs = [84.97, 88.14, 88.19, 88.55, 88.75, 88.6, 88.07, 87.72, 88.03, 87.59, 87.01]
+    words_forward = [1, 5, 10, 15, 20, 25, 30]
+    accs = [86, 88.86, 89.49, 89.39, 89.27, 89, 89.02 ]
     plt.plot(words_forward, accs, marker='o')
     plt.xlabel('Number of words forward to predict')
     plt.ylabel('Accuracy (%)')
