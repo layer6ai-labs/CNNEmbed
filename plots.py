@@ -6,9 +6,9 @@ def gating_no_gating_plot():
     no_gating = [87.09, 87.87, 88.29]
     epoch_nums = [10, 20, 30]
 
-    plt.plot(epoch_nums, gating, marker='o', markersize=10, color='r', label='GLUs')
-    plt.plot(epoch_nums, no_gating, marker='o', markersize=10, color='b', label='Relus')
-    plt.xlabel('Epoch number', fontsize=25)
+    plt.plot(epoch_nums, gating, marker='o', markersize=10, color='r', label='GLU')
+    plt.plot(epoch_nums, no_gating, marker='o', markersize=10, color='b', label='ReLu')
+    plt.xlabel('Epoch', fontsize=25)
     plt.ylabel('Accuracy (%)', fontsize=25)
     plt.tick_params(labelsize=25)
     plt.legend(prop={'size': 25})
@@ -21,7 +21,7 @@ def num_layers_plot():
     # the third value is wrong.
 
     plt.plot(num_layers, accs, marker='o', markersize=10, markevery=1)
-    plt.xlabel('Number of convolutional layers', fontsize=25)
+    plt.xlabel('Number of GLU layers', fontsize=25)
     plt.ylabel('Accuracy (%)', fontsize=25)
     # plt.ylim(87.5, 90)
     plt.tick_params(labelsize=25)
@@ -32,7 +32,7 @@ def words_forward_plot():
     words_forward = [1, 5, 10, 15, 20, 25, 30]
     accs = [86, 88.86, 89.49, 89.39, 89.27, 89, 89.02 ]
     plt.plot(words_forward, accs, marker='o', markersize=10, markevery=1)
-    plt.xlabel('Number of words forward to predict', fontsize=25)
+    plt.xlabel('Forward prediction window h', fontsize=25)
     plt.ylabel('Accuracy (%)', fontsize=25)
     plt.tick_params(labelsize=25)
     plt.show()
