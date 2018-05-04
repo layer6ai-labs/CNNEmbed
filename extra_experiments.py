@@ -1,6 +1,21 @@
 import subprocess
+import itertools
 
 # Simple script for running some extra experiments.
+
+def generate_param_combinations(hyper_params):
+    '''Generate and return all combinations of the hyper parameters for the grid search.'''
+
+    all_params = sorted(hyper_params)
+    all_combs = itertools.product(*(hyper_params[name] for name in all_params))
+    all_combs = list(all_combs)
+
+    combinations_list = []
+    for comb in all_combs:
+        d = dict(zip(all_params, comb))
+        combinations_list.append(d)
+
+    return combinations_list
 
 def words_forward_exp():
 
@@ -28,8 +43,38 @@ def num_layers_exp():
         new_call = subprocess_call + ['--num-layers', str(l)]
         subprocess.call(new_call)
 
+def amazon_grid_search():
+    '''
+    Performing parameter sweeps on the Amazon dataset.
+    '''
+
+    hyper_params = {
+        '--context-len': ['10', '20'],
+        '--num-filters': ['500', '900'],
+        '--num-positive-words': ['10', '20'],
+        '--num-negative-words': ['50', '70'],
+        '--num-residual': ['1', '2'],
+        '--num-layers': ['4', '7', '9']
+    }
+
+    all_params = generate_param_combinations(hyper_params)
+    subprocess_call = ['python', './train.py', '--batch-size', '100', '--num-classes', '2', '--dataset', 'amazon',
+                       '--model', 'CNN_pad', '--max-iter', '31', '--data-dir', '/home/shunan/Data/', '--accuracy-file',
+                       './cache/amazon_grid_search.pkl']
+
+    i = 88
+    while i < len(all_params):
+        param = all_params[i]
+        new_call = subprocess_call[:]
+        for elem in param:
+            new_call.append(elem)
+            new_call.append(param[elem])
+
+        print('Running experiment with: {}'.format(param))
+        subprocess.call(new_call)
+
+        i += 1
 
 if __name__ == '__main__':
 
-    words_forward_exp()
-    num_layers_exp()
+    amazon_grid_search()

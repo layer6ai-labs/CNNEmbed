@@ -102,3 +102,8 @@ ENV/
 *.iml
 out
 gen
+
+latest_model/*
+
+*.pkl
+*.npy
