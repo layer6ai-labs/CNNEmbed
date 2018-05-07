@@ -97,7 +97,8 @@ class BatchGenerator(object):
     document.
     """
 
-    def __init__(self, training_inds, num_pos_exs, num_neg_exs, max_doc_len, context_len, vocab_size, batch_size):
+    def __init__(self, training_inds, num_pos_exs, num_neg_exs, max_doc_len, context_len, vocab_size, batch_size,
+                 gap=None):
         """
         Create a batch generator.
 
@@ -109,6 +110,8 @@ class BatchGenerator(object):
             context_len (int): Length of the minimum context to give for each training instance.
             vocab_size (int): Vocabulary size
             batch_size (int): Batch size
+            gap (tuple): A tuple of length 2, containing the low and high values to sample the gap from. If None, don't
+                use a gap.
         """
 
         self.num_pos_exs = num_pos_exs
@@ -117,6 +120,7 @@ class BatchGenerator(object):
         self.context_len = context_len
         self.vocab_size = vocab_size
         self.batch_size = batch_size
+        self.gap = gap
         self.counter = 0
 
         # Remove the documents that are too short.
@@ -182,7 +186,14 @@ class BatchGenerator(object):
                 t_ind = len(dat) - self.num_pos_exs
                 context_inds = set(dat)
             else:
-                forward_inds = range(self.context_len, min(len(dat), self.max_doc_len) - self.num_pos_exs + 1)
+                gap_val = 0
+                if self.gap is not None:
+                    # Use a gap in this case, where we try to predict the tokens after the gap.
+                    gap_val = np.random.randint(self.gap[0], self.gap[1])
+                    if len(dat) < self.context_len + self.num_pos_exs + gap_val:
+                        gap_val = 0
+
+                forward_inds = range(self.context_len + gap_val, min(len(dat), self.max_doc_len) - self.num_pos_exs + 1)
                 t_ind = np.random.choice(forward_inds)
                 pos_inds = dat[t_ind:t_ind+self.num_pos_exs]
                 context_inds = set(dat[:t_ind + self.num_pos_exs])

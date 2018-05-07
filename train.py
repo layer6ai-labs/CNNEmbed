@@ -6,7 +6,7 @@ from models.CNNEmbed import CNNEmbed
 from models.SentimentClassifier import SentimentClassifier
 import os
 
-def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob):
+def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob, is_training):
     """
     Do a training pass through a batch of the data.
 
@@ -18,6 +18,7 @@ def training_pass(sess, train_op, data_inds, target_inds, batch_target, placehol
         batch_target (numpy.ndarray): The target labels
         placeholders (list): Tensorflow placeholders used for training
         keep_prob (float): The keep prob, used for dropout
+        is_training (bool): Bool which is True if model is training, False if performing inference.
 
     Returns:
         None
@@ -27,9 +28,10 @@ def training_pass(sess, train_op, data_inds, target_inds, batch_target, placehol
     indices_target_placeholder = placeholders[1]
     target_place_holder = placeholders[2]
     kp_placeholder = placeholders[3]
+    is_training_placeholder = placeholders[4]
 
     feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
-                 target_place_holder: batch_target, kp_placeholder: keep_prob}
+                 target_place_holder: batch_target, kp_placeholder: keep_prob, is_training_placeholder: is_training}
     sess.run([train_op], feed_dict)
 
 
@@ -38,6 +40,7 @@ def main(args):
     context_len = args.context_len
     batch_size = args.batch_size
     num_filters = args.num_filters
+    filter_size = args.filter_size
     num_layers = args.num_layers
     pos_words_num = args.num_positive_words
     neg_words_num = args.num_negative_words
@@ -91,9 +94,11 @@ def main(args):
     else:
         # Preprocess data
         if args.dataset == 'imdb':
-            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_imdb(data_dir, max_doc_len, fixed_length)
+            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_imdb(
+                data_dir, max_doc_len, fixed_length)
         elif args.dataset == 'amazon':
-            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_amazon(data_dir, max_doc_len, fixed_length)
+            vector_up, train_data_indices, train_labels, test_data_indices, test_labels = get_data_amazon(
+                data_dir, max_doc_len, fixed_length)
         elif args.dataset == 'wikipedia':
             vector_up, train_data_indices, train_labels, test_data_indices, test_labels = \
                 get_data_wikipedia(data_dir, max_doc_len, fixed_length)
@@ -115,7 +120,8 @@ def main(args):
 
     ###########################################Embedding learning Graph#########################################
     doc2vec_graph = tf.Graph()
-    with doc2vec_graph.as_default(), tf.device("/gpu:0"):
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with doc2vec_graph.as_default(), tf.device("/gpu:0"), tf.control_dependencies(update_ops):
         indices_data_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, None])
         indices_target_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, pos_words_num + neg_words_num])
 
@@ -130,12 +136,13 @@ def main(args):
         targets_embeds = tf.transpose(targets_embeds, [0, 2, 1, 3])
 
         target_place_holder = tf.placeholder(tf.float32, [None, pos_words_num + neg_words_num])
-        # Placeholder for dropout
+        # Placeholder for training
         keep_prob_placeholder = tf.placeholder(dtype=tf.float32, name='dropout_rate')
+        is_training_placeholder = tf.placeholder(dtype=tf.bool, name='training_boolean')
 
         # build model
-        _docCNN = CNNEmbed(inputs, targets_embeds, target_place_holder, keep_prob_placeholder, max_doc_len, embed_dim,
-                           num_layers, num_filters, num_residual, k_max)
+        _docCNN = CNNEmbed(inputs, targets_embeds, target_place_holder, is_training_placeholder, keep_prob_placeholder,
+                           max_doc_len, embed_dim, num_layers, num_filters, num_residual, k_max, filter_size)
 
         global_step = tf.Variable(0, trainable=False)
 
@@ -195,8 +202,11 @@ def main(args):
 
     # dict to store the accuracy values.
     if args.accuracy_file:
-        with open(args.accuracy_file, 'r') as f:
-            accs = cPickle.load(f)
+        if os.path.isfile(args.accuracy_file):
+            with open(args.accuracy_file, 'r') as f:
+                accs = cPickle.load(f)
+        else:
+            accs = []
     acc_values = []
 
     itr = 0
@@ -209,17 +219,18 @@ def main(args):
         batch_generator.generate_training_batches()
         train_times = []
         placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
-                        keep_prob_placeholder]
+                        keep_prob_placeholder, is_training_placeholder]
         for i in range(batch_per_epoch):
             t1 = time.time()
             ret_val = batch_generator.get_data()
             data_inds, target_inds = ret_val
-            training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob)
+            training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob, True)
             train_times.append(time.time() - t1)
 
             if i % 100 == 0:
                 feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
-                             target_place_holder: batch_target, keep_prob_placeholder: 1}
+                             target_place_holder: batch_target, keep_prob_placeholder: 1.,
+                             is_training_placeholder: False}
                 loss_out = sess_docCNN.run([loss], feed_dict)
                 print('Iteration: {}, batch: {}, loss: {}'.format(itr, i, loss_out))
                 print('Average train time: {:.5f}'.format(np.mean(train_times)))
@@ -229,7 +240,7 @@ def main(args):
         print('overall highest accuracy: {}'.format(overall_highest))
 
         # Training the classifier from scratch.
-        if itr > 0 and itr % 10 == 0:
+        if itr > 0 and itr % 5 == 0:
             print('training a new classifier')
             # Forward pass to get the embeddings
             sess_classifier.run(train_init_op_classifier)
@@ -244,7 +255,8 @@ def main(args):
                     continue
                 classifier_train_inds = np.expand_dims(train_data_indices_sup[i], axis=0)
 
-                feed_dict_train = {indices_data_placeholder: classifier_train_inds, keep_prob_placeholder: 1}
+                feed_dict_train = {indices_data_placeholder: classifier_train_inds, keep_prob_placeholder: 1.,
+                                   is_training_placeholder: False}
                 train_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_train)
                 train_data_doc2vec_sup.append(train_doc2vec)
 
@@ -255,7 +267,8 @@ def main(args):
                     continue
                 classifier_test_data = np.expand_dims(test_data_indices_sup[i], axis=0)
 
-                feed_dict_test = {indices_data_placeholder: classifier_test_data, keep_prob_placeholder: 1}
+                feed_dict_test = {indices_data_placeholder: classifier_test_data, keep_prob_placeholder: 1.,
+                                  is_training_placeholder: False}
                 test_doc2vec = sess_docCNN.run(test_obj_cal_output, feed_dict_test)
                 test_data_doc2vec_sup.append(test_doc2vec)
 
@@ -331,6 +344,7 @@ if __name__ == '__main__':
     parser.add_argument('--context-len', default=10, type=int, help='The size of the minimum context.')
     parser.add_argument('--batch-size', default=100, type=int, help='Batch size.')
     parser.add_argument('--num-filters', type=int, help='Number of convolutional filters.')
+    parser.add_argument('--filter-size', type=int, default=5, help='The size of the convolutional filters.')
     parser.add_argument('--num-layers', type=int, help='Number of layers, including the last fully-connected layer.')
     parser.add_argument('--num-positive-words', type=int, help='Number of next words to predict.')
     parser.add_argument('--num-negative-words', type=int, help='Number of negative samples.')
