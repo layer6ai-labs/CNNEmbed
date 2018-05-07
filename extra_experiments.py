@@ -79,10 +79,35 @@ def amazon_grid_search():
 def wikipedia_grid_search():
     '''
     Perform parameter sweeps on the Wikipedia dataset.
-    :return:
     '''
 
-    pass
+    hyper_params = {
+        '--context-len': ['10', '20'],
+        '--num-filters': ['900'],
+        '--num-positive-words': ['10'],
+        '--num-negative-words': ['70'],
+        '--num-residual': ['1', '2'],
+        '--num-layers': ['4', '7', '9'],
+        '--filter-size': ['5', '7']
+    }
+
+    all_params = generate_param_combinations(hyper_params)
+    subprocess_call = ['python', './train.py', '--batch-size', '100', '--num-classes', '100', '--dataset', 'wikipedia',
+                       '--model', 'CNN_pad', '--max-iter', '36', '--data-dir', '/home/shunan/Data/', '--accuracy-file',
+                       './cache/wikipedia_grid_search.pkl']
+
+    i = 0
+    while i < len(all_params):
+        param = all_params[i]
+        new_call = subprocess_call[:]
+        for elem in param:
+            new_call.append(elem)
+            new_call.append(param[elem])
+
+        print('Running experiment with: {}'.format(param))
+        subprocess.call(new_call)
+
+        i += 1
 
 if __name__ == '__main__':
 
