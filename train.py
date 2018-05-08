@@ -51,7 +51,13 @@ def main(args):
     data_dir = args.data_dir
     checkpoint_path = args.checkpoint_dir
     max_iter = args.max_iter
+    gap_max = args.gap_max
     k_max = 0
+
+    hyper_param_list = {'context_len': context_len, 'batch_size': batch_size, 'num_filters': num_filters,
+                        'filter_size': filter_size, 'num_layers': num_layers, 'pos_words_num': pos_words_num,
+                        'neg_words_num': neg_words_num, 'num_residual': num_residual, 'keep_prob': keep_prob,
+                        'gap_max': gap_max}
 
     if args.dataset == 'imdb':
         max_doc_len = 400
@@ -197,8 +203,12 @@ def main(args):
     batch_target = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
 
     # Batch generator
+    if gap_max is not None:
+        forward_gap = (0, gap_max)
+    else:
+        forward_gap = None
     batch_generator = BatchGenerator(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
-                                     context_len, vector_up.shape[0] - 1, batch_size)
+                                     context_len, vector_up.shape[0] - 1, batch_size, gap=forward_gap)
 
     # dict to store the accuracy values.
     if args.accuracy_file:
@@ -333,7 +343,7 @@ def main(args):
         itr += 1
 
     if args.accuracy_file:
-        accs.append(acc_values)
+        accs.append((hyper_param_list, acc_values))
         with open(args.accuracy_file, 'w') as f:
             cPickle.dump(accs, f)
 
@@ -348,6 +358,8 @@ if __name__ == '__main__':
     parser.add_argument('--num-layers', type=int, help='Number of layers, including the last fully-connected layer.')
     parser.add_argument('--num-positive-words', type=int, help='Number of next words to predict.')
     parser.add_argument('--num-negative-words', type=int, help='Number of negative samples.')
+    parser.add_argument('--gap-max', type=int, help='Upper bound to use for the gap, when predicting positive examples.',
+                        default=None)
     parser.add_argument('--num-residual', type=int, default=-1, help='Number of layers to skip in residual connections.')
     parser.add_argument('--num-classes', type=int, default=2,
                         help='Number of classes in the classifier (2 or 5). For IMDB, the number classes is only 2.')

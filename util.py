@@ -181,12 +181,12 @@ class BatchGenerator(object):
         num_resamples = 0
         for i in range(len(self.training_inds)):
             dat = self.training_inds[i]
+            gap_val = 0
             if len(dat) < self.context_len + self.num_pos_exs:
                 pos_inds = dat[-self.num_pos_exs:]
                 t_ind = len(dat) - self.num_pos_exs
                 context_inds = set(dat)
             else:
-                gap_val = 0
                 if self.gap is not None:
                     # Use a gap in this case, where we try to predict the tokens after the gap.
                     gap_val = np.random.randint(self.gap[0], self.gap[1])
@@ -199,16 +199,16 @@ class BatchGenerator(object):
                 context_inds = set(dat[:t_ind + self.num_pos_exs])
 
             # Doing the negative sampling.
-            samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
-            while context_inds.intersection(set(samples)):
-                samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
+            neg_samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
+            while context_inds.intersection(set(neg_samples)):
+                neg_samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
                 num_resamples += 1
 
             # Pad with zeros at the beginning
-            tmp = dat[:t_ind]
+            tmp = dat[:(t_ind - gap_val)]
             train_inds = [(self.vocab_size - 1) for _ in range(self.max_doc_len - len(tmp))] + tmp
             self.training_inds_with_samples.append(train_inds)
-            self.target_with_samples.append(np.concatenate((pos_inds, samples)))
+            self.target_with_samples.append(np.concatenate((pos_inds, neg_samples)))
 
         self.training_inds_with_samples = np.array(self.training_inds_with_samples)
         self.target_with_samples = np.array(self.target_with_samples)
