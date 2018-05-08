@@ -46,6 +46,7 @@ def main(args):
     neg_words_num = args.num_negative_words
     num_residual = args.num_residual
     keep_prob = args.dropout_keep_prob
+    l2_coeff = args.l2_coeff
     embed_dim = args.embed_dim
     learning_rate = args.learning_rate
     data_dir = args.data_dir
@@ -57,7 +58,7 @@ def main(args):
     hyper_param_list = {'context_len': context_len, 'batch_size': batch_size, 'num_filters': num_filters,
                         'filter_size': filter_size, 'num_layers': num_layers, 'pos_words_num': pos_words_num,
                         'neg_words_num': neg_words_num, 'num_residual': num_residual, 'keep_prob': keep_prob,
-                        'gap_max': gap_max}
+                        'l2_coeff': l2_coeff, 'gap_max': gap_max}
 
     if args.dataset == 'imdb':
         max_doc_len = 400
@@ -148,7 +149,7 @@ def main(args):
 
         # build model
         _docCNN = CNNEmbed(inputs, targets_embeds, target_place_holder, is_training_placeholder, keep_prob_placeholder,
-                           max_doc_len, embed_dim, num_layers, num_filters, num_residual, k_max, filter_size)
+                           max_doc_len, embed_dim, num_layers, num_filters, num_residual, k_max, filter_size, l2_coeff)
 
         global_step = tf.Variable(0, trainable=False)
 
@@ -159,7 +160,7 @@ def main(args):
 
         # setting the learning rate
         # Not using learning rate decay
-        learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, sys.maxint, 0.99, staircase=True)
+        learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, 1, 0.96)
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate_t)
         grads_and_vars = optimizer.compute_gradients(loss)
         train_op = optimizer.apply_gradients(grads_and_vars)
@@ -225,7 +226,7 @@ def main(args):
         data_size = batch_generator.get_data_size()
         batch_per_epoch = data_size / batch_size
         print('Number of batches: {}'.format(batch_per_epoch))
-        sess_docCNN.run(global_step.assign(itr))
+        sess_docCNN.run(global_step.assign(itr + 1))
         batch_generator.generate_training_batches()
         train_times = []
         placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
@@ -363,7 +364,8 @@ if __name__ == '__main__':
     parser.add_argument('--num-residual', type=int, default=-1, help='Number of layers to skip in residual connections.')
     parser.add_argument('--num-classes', type=int, default=2,
                         help='Number of classes in the classifier (2 or 5). For IMDB, the number classes is only 2.')
-    parser.add_argument('--dropout-keep-prob', type=float, default=0.8, help='The dropout keep prob.')
+    parser.add_argument('--dropout-keep-prob', type=float, default=0.75, help='The dropout keep prob.')
+    parser.add_argument('--l2-coeff', type=float, default=0., help='The weight decay coefficient (l2).')
     parser.add_argument('--preprocessing', action='store_true',
                         help='If true, redo the pre-processing. Otherwise, load the saved pre-processed files.')
     parser.add_argument('--cache-dir', type=str, default='./cache',
@@ -374,7 +376,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='CNN_pad',
                         help='The model to use, which is \'CNN_pad\', \'CNN_pool\' or \'CNN_topk\'')
     parser.add_argument('--embed-dim', type=int, default=300, help='The dimensionality of the word embeddings.')
-    parser.add_argument('--learning-rate', type=float, default=0.0003, help='The learning rate.')
+    parser.add_argument('--learning-rate', type=float, default=0.0002, help='The learning rate.')
     parser.add_argument('--top-k', type=int, default=0, help='The value of k when performing k-max pooling')
     parser.add_argument('--max-iter', type=int, default=100, help='The maximum number of training iterations.')
     parser.add_argument('--accuracy-file', type=str, help='File to store the accuracy values.')

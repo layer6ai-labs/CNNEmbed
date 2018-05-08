@@ -61,7 +61,7 @@ def amazon_grid_search():
     all_params = generate_param_combinations(hyper_params)
     subprocess_call = ['python', './train.py', '--batch-size', '100', '--num-classes', '2', '--dataset', 'amazon',
                        '--model', 'CNN_pad', '--max-iter', '36', '--data-dir', '/home/shunan/Data/', '--gap-max', '4',
-                       '--accuracy-file', './cache/amazon_grid_search.pkl']
+                       '--l2-coeff', '0.3', '--accuracy-file', './cache/amazon_grid_search.pkl']
 
     i = 0
     while i < len(all_params):
@@ -94,7 +94,7 @@ def wikipedia_grid_search():
     all_params = generate_param_combinations(hyper_params)
     subprocess_call = ['python', './train.py', '--batch-size', '100', '--num-classes', '100', '--dataset', 'wikipedia',
                        '--model', 'CNN_pad', '--max-iter', '36', '--data-dir', '/home/shunan/Data/', '--gap-max', '4',
-                       '--accuracy-file', './cache/wikipedia_grid_search.pkl']
+                       '--l2-coeff', '0.3', '--accuracy-file', './cache/wikipedia_grid_search.pkl']
 
     i = 0
     while i < len(all_params):

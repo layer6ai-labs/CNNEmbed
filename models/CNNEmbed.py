@@ -9,7 +9,8 @@ class CNNEmbed(object):
     '''
 
     def __init__(self, input_data, target_embeddings, target_labels, is_training, keep_prob=0.8, max_doc_len=400,
-                 embed_dim=300, num_layers=4, num_filters=900, residual_skip=2, k_max=0, filter_size=5):
+                 embed_dim=300, num_layers=4, num_filters=900, residual_skip=2, k_max=0, filter_size=5,
+                 weight_decay_coeff=0):
         '''
         Create a CNN for learning document embeddings.
 
@@ -41,6 +42,7 @@ class CNNEmbed(object):
         self.residual_skip = residual_skip
         self.k_max = k_max
         self.filter_size = filter_size
+        self.weight_decay_coeff = weight_decay_coeff
 
         # Build the model.
         self.build_model()
@@ -53,6 +55,7 @@ class CNNEmbed(object):
         prev_layer = self.input_data
         res_input = None
         std = np.sqrt(2. / (1 * 5 * self.num_filters))
+        trainable_weights = tf.get_collection('trainable_weights')
 
         for i in range(self.num_layers - 1):
             with tf.variable_scope('conv_{}'.format(i)):
@@ -118,6 +121,8 @@ class CNNEmbed(object):
                                          initializer=tf.constant_initializer(0.0))
                 self.res = tf.nn.bias_add(tf.matmul(average_h, weights), biases)
 
+            tf.add_to_collection('trainable_weights', weights)
+            tf.add_to_collection('trainable_weights', biases)
             self.res = tf.expand_dims(tf.expand_dims(self.res, 0), 0)
             self.res = tf.transpose(self.res, perm=[2, 1, 0, 3])
 
@@ -159,6 +164,8 @@ class CNNEmbed(object):
             initializer=tf.constant_initializer(0.0, dtype=tf.float32),
             dtype=tf.float32)
 
+        tf.add_to_collection('trainable_weights', kernel)
+        tf.add_to_collection('trainable_weights', biases)
         return tf.nn.bias_add(conv, biases)
 
     def loss(self):
@@ -171,4 +178,6 @@ class CNNEmbed(object):
         scores = tf.reduce_sum(scores, 1)
         scores = tf.squeeze(scores, axis=2)
         losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=scores, labels=self.target_labels)
-        return tf.reduce_mean(tf.reduce_sum(losses, 1))
+        # Adding weight decay
+        wd_loss = tf.add_n([tf.nn.l2_loss(t) for t in tf.get_collection('trainable_weights')])
+        return tf.reduce_mean(tf.reduce_sum(losses, 1) + self.weight_decay_coeff * wd_loss)
