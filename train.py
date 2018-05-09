@@ -363,20 +363,22 @@ if __name__ == '__main__':
                         default=None)
     parser.add_argument('--num-residual', type=int, default=-1, help='Number of layers to skip in residual connections.')
     parser.add_argument('--num-classes', type=int, default=2,
-                        help='Number of classes in the classifier (2 or 5). For IMDB, the number classes is only 2.')
-    parser.add_argument('--dropout-keep-prob', type=float, default=0.75, help='The dropout keep prob.')
+                        help='Number of classes in the classifier (2, 5, or 100). For IMDB, the number classes is only '
+                             '2. For wikipedia, it is only 100')
+    parser.add_argument('--dropout-keep-prob', type=float, default=0.8, help='The dropout keep prob.')
     parser.add_argument('--l2-coeff', type=float, default=0., help='The weight decay coefficient (l2).')
     parser.add_argument('--preprocessing', action='store_true',
                         help='If true, redo the pre-processing. Otherwise, load the saved pre-processed files.')
     parser.add_argument('--cache-dir', type=str, default='./cache',
                         help='The directory containing the saved pre-processed and embedding files')
-    parser.add_argument('--dataset', type=str, required=True, help='The dataset to use, either \'amazon\' or \'imdb\'.')
+    parser.add_argument('--dataset', type=str, required=True,
+                        help='The dataset to use, either \'amazon\', \'imdb\', or \'wikipedia\'.')
     parser.add_argument('--data-dir', type=str, required=True, help='Directory containing the data.')
     parser.add_argument('--checkpoint-dir', type=str, default='./latest_model/', help='Checkpoints directory.')
     parser.add_argument('--model', type=str, default='CNN_pad',
                         help='The model to use, which is \'CNN_pad\', \'CNN_pool\' or \'CNN_topk\'')
     parser.add_argument('--embed-dim', type=int, default=300, help='The dimensionality of the word embeddings.')
-    parser.add_argument('--learning-rate', type=float, default=0.0002, help='The learning rate.')
+    parser.add_argument('--learning-rate', type=float, default=0.0003, help='The learning rate.')
     parser.add_argument('--top-k', type=int, default=0, help='The value of k when performing k-max pooling')
     parser.add_argument('--max-iter', type=int, default=100, help='The maximum number of training iterations.')
     parser.add_argument('--accuracy-file', type=str, help='File to store the accuracy values.')

@@ -49,19 +49,20 @@ def amazon_grid_search():
     '''
 
     hyper_params = {
-        '--context-len': ['10', '20'],
+        '--context-len': ['10'],
         '--num-filters': ['900'],
         '--num-positive-words': ['10'],
-        '--num-negative-words': ['50', '70'],
-        '--num-residual': ['1', '2'],
+        '--num-negative-words': ['70'],
+        '--num-residual': ['2'],
         '--num-layers': ['7', '9'],
-        '--filter-size': ['5', '7']
+        '--filter-size': ['5'],
+        '--l2-coeff': ['0', '0.0001']
     }
 
     all_params = generate_param_combinations(hyper_params)
     subprocess_call = ['python', './train.py', '--batch-size', '100', '--num-classes', '2', '--dataset', 'amazon',
-                       '--model', 'CNN_pad', '--max-iter', '36', '--data-dir', '/home/shunan/Data/', '--gap-max', '4',
-                       '--l2-coeff', '0.3', '--accuracy-file', './cache/amazon_grid_search.pkl']
+                       '--model', 'CNN_pad', '--max-iter', '36', '--data-dir', '/home/shunan/Data/',
+                       '--accuracy-file', './cache/amazon_accs.pkl', '--preprocessing']
 
     i = 0
     while i < len(all_params):
