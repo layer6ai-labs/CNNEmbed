@@ -2,7 +2,6 @@ import numpy as np
 import sys
 import time
 
-
 def pad_zeros(data_indices, zero_ind, max_doc_len):
     """
     Pad the indices with zero in the beginning if the length is less than max number of words.

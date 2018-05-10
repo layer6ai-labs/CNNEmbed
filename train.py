@@ -127,8 +127,7 @@ def main(args):
 
     ###########################################Embedding learning Graph#########################################
     doc2vec_graph = tf.Graph()
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    with doc2vec_graph.as_default(), tf.device("/gpu:0"), tf.control_dependencies(update_ops):
+    with doc2vec_graph.as_default(), tf.device("/gpu:0"):
         indices_data_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, None])
         indices_target_placeholder = tf.placeholder(dtype=tf.int32, shape=[None, pos_words_num + neg_words_num])
 
@@ -158,12 +157,13 @@ def main(args):
         # input of the test (supervised learning) process
         test_obj_cal_output = tf.squeeze(_docCNN.res)
 
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         # setting the learning rate
-        # Not using learning rate decay
-        learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, 1, 0.96)
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate_t)
-        grads_and_vars = optimizer.compute_gradients(loss)
-        train_op = optimizer.apply_gradients(grads_and_vars)
+        with tf.control_dependencies(update_ops):
+            learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, 1, 0.96)
+            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate_t)
+            grads_and_vars = optimizer.compute_gradients(loss)
+            train_op = optimizer.apply_gradients(grads_and_vars)
 
         session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
         sess_docCNN = tf.Session(config=session_conf)
