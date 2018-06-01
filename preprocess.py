@@ -4,6 +4,8 @@ import nltk
 import struct
 import numpy as np
 from scipy.io import loadmat
+import glob
+import cPickle
 import pdb
 
 
@@ -384,3 +386,88 @@ def get_data_wikipedia(data_path, max_doc_len, fixed_length=True):
     test_labels = np.array([class_map[x] for x in test_labels])
 
     return input_embeddings, train_data_indices, train_labels, test_data_indices, test_labels
+
+
+def get_data_gbw(data_path, max_doc_len=None):
+    '''
+    Turn the GBW dataset into a list of indices. Store the indices locally.
+
+    Args:
+        data_path (str): Path to the directory containing the data.
+        max_doc_len (int): Maximum length of input, if using CNN-pad. None, otherwise.
+    '''
+
+    word_vectors, word_to_index = load_word2vec_fast(data_path)
+    all_inds = []
+    new_word_to_index = dict()
+    for word in word_to_index:
+        if word.lower() in new_word_to_index:
+            continue
+        elif word.lower() in word_to_index:
+            new_word_to_index[word.lower()] = word_to_index[word.lower()]
+            all_inds.append(new_word_to_index[word.lower()])
+
+    all_inds.sort()
+    new_ind_mapping = dict()
+    i = 0
+    for ind in all_inds:
+        new_ind_mapping[ind] = i
+        i += 1
+
+    word_vectors = word_vectors[all_inds, :]
+    word_to_index = dict()
+    for elem in new_word_to_index:
+        word_to_index[elem] = new_ind_mapping[new_word_to_index[elem]]
+    print('Size of the vocabulary: {}'.format(word_vectors.shape[0]))
+
+    # Adding <unk> token
+    word_vectors = np.vstack((word_vectors, np.random.uniform(-1, 1, size=[1, 300])))
+    word_to_index['<unk>'] = len(word_to_index)
+
+    # Adding zero vector
+    word_vectors = np.vstack([word_vectors, np.zeros([word_vectors.shape[1]])])
+
+    # Saving the embeddings
+    np.save('./gbw_cache/vector_up.npy', word_vectors)
+    with open('./gbw_cache/word_to_index.pkl', 'w') as f:
+        cPickle.dump(word_to_index, f)
+
+    # rather than remap the vocabulary to a smaller, because the dataset is so large, I'll just store the entire
+    # word2vec vocabulary. The amount of memory saved is probably insignificant, after removing duplicates after
+    # converting to lowercase.
+    gbw_files = glob.glob(os.path.join(data_path, 'gbw/training-monolingual.tokenized.shuffled/*'))
+    tknzr = nltk.tokenize.TweetTokenizer()
+    lengths = []
+    file_num = 1
+    for fn in gbw_files:
+        token_fn = os.path.join(data_path, 'gbw/tokenized', fn.split('/')[-1] + '.npy')
+        all_docs = []
+        with open(fn, 'r') as f:
+            for line in f:
+                # use tokenizer here
+                tokens = nltk.word_tokenize(' '.join(tknzr.tokenize(line)))
+                tokens = [word.lower() for word in tokens]
+                line_tok = []
+                for word in tokens:
+                    if word in word_to_index:
+                        line_tok.append(word_to_index[word])
+                    else:
+                        line_tok.append(word_to_index['<unk>'])
+
+                if max_doc_len is not None and len(line_tok) > max_doc_len:
+                    line_tok = line_tok[:max_doc_len]
+
+                if len(line_tok) > 0:
+                    all_docs.append(line_tok)
+                    lengths.append(len(line_tok))
+
+        np.save(token_fn, all_docs)
+        print('Finished file {} of 100'.format(file_num))
+        file_num += 1
+
+    return lengths
+
+
+if __name__ == '__main__':
+
+    get_data_gbw('/home/shunan/Data/')

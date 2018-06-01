@@ -104,6 +104,7 @@ out
 gen
 
 latest_model/*
+latest_model_gbw/*
 
 *.pkl
 *.npy

@@ -97,7 +97,7 @@ class BatchGenerator(object):
     """
 
     def __init__(self, training_inds, num_pos_exs, num_neg_exs, max_doc_len, context_len, vocab_size, batch_size,
-                 gap=None):
+                 zero_ind, gap=None):
         """
         Create a batch generator.
 
@@ -119,6 +119,7 @@ class BatchGenerator(object):
         self.context_len = context_len
         self.vocab_size = vocab_size
         self.batch_size = batch_size
+        self.zero_ind = zero_ind
         self.gap = gap
         self.counter = 0
 
@@ -198,14 +199,14 @@ class BatchGenerator(object):
                 context_inds = set(dat[:t_ind + self.num_pos_exs])
 
             # Doing the negative sampling.
-            neg_samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
+            neg_samples = np.random.choice(self.vocab_size, size=self.num_neg_exs, replace=False)
             while context_inds.intersection(set(neg_samples)):
-                neg_samples = np.random.choice(self.vocab_size - 1, size=self.num_neg_exs, replace=False)
+                neg_samples = np.random.choice(self.vocab_size, size=self.num_neg_exs, replace=False)
                 num_resamples += 1
 
             # Pad with zeros at the beginning
             tmp = dat[:(t_ind - gap_val)]
-            train_inds = [(self.vocab_size - 1) for _ in range(self.max_doc_len - len(tmp))] + tmp
+            train_inds = [self.zero_ind for _ in range(self.max_doc_len - len(tmp))] + tmp
             self.training_inds_with_samples.append(train_inds)
             self.target_with_samples.append(np.concatenate((pos_inds, neg_samples)))
 

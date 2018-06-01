@@ -6,6 +6,8 @@ from models.CNNEmbed import CNNEmbed
 from models.SentimentClassifier import SentimentClassifier
 import os
 
+RESTORE = False
+
 def training_pass(sess, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob, is_training):
     """
     Do a training pass through a batch of the data.
@@ -160,7 +162,7 @@ def main(args):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         # setting the learning rate
         with tf.control_dependencies(update_ops):
-            learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, 1, 0.96)
+            learning_rate_t = tf.train.exponential_decay(learning_rate, global_step, 1, 0.99)
             optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate_t)
             grads_and_vars = optimizer.compute_gradients(loss)
             train_op = optimizer.apply_gradients(grads_and_vars)
@@ -208,8 +210,9 @@ def main(args):
         forward_gap = (0, gap_max)
     else:
         forward_gap = None
-    batch_generator = BatchGenerator(train_data_indices, pos_words_num, neg_words_num, max_doc_len,
-                                     context_len, vector_up.shape[0] - 1, batch_size, gap=forward_gap)
+    # vector_up.shape[0] - 1, because last element is zero vector
+    batch_generator = BatchGenerator(train_data_indices, pos_words_num, neg_words_num, max_doc_len, context_len,
+                                     vector_up.shape[0] - 1, batch_size, vector_up.shape[0] - 1, gap=forward_gap)
 
     # dict to store the accuracy values.
     if args.accuracy_file:
@@ -219,6 +222,10 @@ def main(args):
         else:
             accs = []
     acc_values = []
+
+    if RESTORE:
+        # TODO: delete this global variable when making the code open source
+        saver.restore(sess_docCNN, os.path.join(checkpoint_path, 'model-40'))
 
     itr = 0
     # Training Loop
