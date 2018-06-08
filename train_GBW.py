@@ -274,12 +274,12 @@ def main(args):
                 ind2 += super_batch_size
 
             # Finished one of the files
-            feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
-                         target_place_holder: batch_target, keep_prob_placeholder: 1., is_training_placeholder: False}
-            loss_out = sess_docCNN.run([loss], feed_dict)
-            print('Epoch: {}, file: {}, loss: {}'.format(iter, file_num + 1, loss_out))
+            # feed_dict = {indices_data_placeholder: data_inds, indices_target_placeholder: target_inds,
+            #              target_place_holder: batch_target, keep_prob_placeholder: 1., is_training_placeholder: False}
+            # loss_out = sess_docCNN.run([loss], feed_dict)
+            print('Epoch: {}, file: {}'.format(iter, file_num + 1))
             print('-----------------------------------------------')
-            if (file_num + 1) % 25 == 0:
+            if (file_num + 1) % 10 == 0:
                 print('Performing classification experiment')
                 perform_trec_exp(sess_docCNN, model_output, indices_data_placeholder,
                                  keep_prob_placeholder, is_training_placeholder, word_to_index)
