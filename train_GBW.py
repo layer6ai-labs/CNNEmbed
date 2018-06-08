@@ -8,10 +8,13 @@ from sklearn.utils import shuffle
 import os
 import nltk
 import codecs
+import numpy as np
+import cPickle
 
-RESTORE = True
+RESTORE = False
 CLASSIFICATION_DIR = '/home/shunan/Code/SentEval/data/downstream/TREC'
 ZERO_IND = 483018
+VOCAB_SIZE = 483019
 
 def encode_text(sess, model_output, indices_data_placeholder, keep_prob_placeholder, is_training_placeholder,
                 word_to_index, text, doc_len=None):
@@ -201,14 +204,19 @@ def main(args):
         sess_docCNN.run(assign_embedding_op)
 
     batch_target = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
-    doc_lengths = [15, 24, 32, 41, 47]
+    # doc_lengths = [15, 24, 32, 41, 47]
+    doc_lengths = range(context_len, 50)
     super_batch_size = 10000  # use the same doc len in a super batch
     placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
                     keep_prob_placeholder, is_training_placeholder]
 
-    iter = 1
+    iter = 0
     while iter < max_iter:
         file_num = 0
+        np.random.shuffle(indices_files)
+        with open(os.path.join(args.cache_dir, 'files_order.pkl'), 'w') as f:
+            cPickle.dump(indices_files, f)
+
         for tokenized_file in indices_files:
             train_indices = np.load(tokenized_file)
             np.random.shuffle(train_indices)
@@ -219,17 +227,47 @@ def main(args):
             ind2 = super_batch_size
             while ind1 < len(train_indices):
                 curr_train_inds = train_indices[ind1:ind2]
-                batch_generator = BatchGenerator(curr_train_inds, pos_words_num, neg_words_num, doc_len, context_len,
-                                                 vector_up.shape[0] - 1, batch_size, vector_up.shape[0] - 1)
-                data_size = batch_generator.get_data_size()
-                num_batches = data_size / batch_size
-                batch_generator.generate_training_batches()
+                all_data = []
+                pos_targets = []
+                neg_targets = []
+                for j in range(len(curr_train_inds)):
+                    elem = curr_train_inds[j]
+                    if len(elem) >= doc_len + pos_words_num:
+                        end_inds = range(doc_len, len(elem) - pos_words_num)
+                        if len(end_inds) > 0:
+                            end_ind = np.random.choice(end_inds)
+                        else:
+                            end_ind = doc_len
 
-                for i in range(num_batches):
-                    ret_val = batch_generator.get_data()
-                    data_inds, target_inds = ret_val
-                    training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob,
-                                  True)
+                        all_data.append(elem[:end_ind])
+                        pos_targets.append(elem[end_ind:end_ind+pos_words_num])
+                        neg_samples = np.random.choice(VOCAB_SIZE, size=neg_words_num, replace=False)
+                        while elem[:end_ind+pos_words_num].intersection(set(neg_samples)):
+                            neg_samples = np.random.choice(VOCAB_SIZE, size=neg_words_num, replace=False)
+
+                        neg_targets.append(neg_samples)
+
+                    if len(all_data) == batch_size or j == len(curr_train_inds) - 1:
+                        data_inds = np.array(all_data)
+                        target_inds = np.concatenate((np.array(pos_targets), np.array(neg_targets)), axis=1)
+                        training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders,
+                                      keep_prob, True)
+
+                        all_data = []
+                        pos_targets = []
+                        neg_targets = []
+
+                # batch_generator = BatchGenerator(curr_train_inds, pos_words_num, neg_words_num, doc_len, context_len,
+                #                                  vector_up.shape[0] - 1, batch_size, vector_up.shape[0] - 1)
+                # data_size = batch_generator.get_data_size()
+                # num_batches = data_size / batch_size
+                # batch_generator.generate_training_batches()
+                #
+                # for i in range(num_batches):
+                #     ret_val = batch_generator.get_data()
+                #     data_inds, target_inds = ret_val
+                #     training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders, keep_prob,
+                #                   True)
 
                 doc_len = np.random.choice(doc_lengths)
                 ind1 += super_batch_size
