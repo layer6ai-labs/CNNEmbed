@@ -9,11 +9,12 @@ import os
 import nltk
 import codecs
 
-RESTORE = False
+RESTORE = True
 CLASSIFICATION_DIR = '/home/shunan/Code/SentEval/data/downstream/TREC'
+ZERO_IND = 483018
 
 def encode_text(sess, model_output, indices_data_placeholder, keep_prob_placeholder, is_training_placeholder,
-                word_to_index, text):
+                word_to_index, text, doc_len=None):
     """
     Encode the text, which is just a sentence, as a vector using the CNN embedding model and return the output.
     """
@@ -27,6 +28,18 @@ def encode_text(sess, model_output, indices_data_placeholder, keep_prob_placehol
             line_tok.append(word_to_index[word])
         else:
             line_tok.append(word_to_index['<unk>'])
+
+    if len(line_tok) < 5:
+        # pad with zeros
+        line_tok = [ZERO_IND for _ in range(5 - len(line_tok))] + line_tok
+
+    if doc_len is not None:
+        # pad or trucate to that length
+        if len(line_tok) > doc_len:
+            line_tok = line_tok[:doc_len]
+        elif len(line_tok) < doc_len:
+            line_tok = [ZERO_IND for _ in range(doc_len - len(line_tok))] + line_tok
+
     line_tok = np.array(line_tok)
     line_tok = np.reshape(line_tok, (1, len(line_tok)))
 
@@ -36,8 +49,8 @@ def encode_text(sess, model_output, indices_data_placeholder, keep_prob_placehol
     return encoding[0]
 
 
-def perform_classification_experiments(sess, model_output, indices_data_placeholder, keep_prob_placeholder,
-                                       is_training_placeholder, word_to_index):
+def perform_trec_exp(sess, model_output, indices_data_placeholder, keep_prob_placeholder,
+                     is_training_placeholder, word_to_index):
     """
     Perform a classification experiments and output the results. For now, just perform classification on the TREC data,
     since there is a defined test/train split.
@@ -69,7 +82,6 @@ def perform_classification_experiments(sess, model_output, indices_data_placehol
     # Fitting the logistic regression classifier.
     clf = LogisticRegression(C=128)
     clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
 
     print('TREC classification accuracy: {}'.format(str(clf.score(X_test, y_test))))
 
@@ -183,7 +195,7 @@ def main(args):
     # Initializing the variables.
 
     if RESTORE:
-        saver.restore(sess_docCNN, os.path.join(checkpoint_path, 'gbw_model_latest'))
+        saver.restore(sess_docCNN, os.path.join(checkpoint_path, 'gbw_model-0'))
     else:
         sess_docCNN.run(train_init_op_docCNN)
         sess_docCNN.run(assign_embedding_op)
@@ -194,7 +206,7 @@ def main(args):
     placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
                     keep_prob_placeholder, is_training_placeholder]
 
-    iter = 0
+    iter = 1
     while iter < max_iter:
         file_num = 0
         for tokenized_file in indices_files:
@@ -231,8 +243,8 @@ def main(args):
             print('-----------------------------------------------')
             if (file_num + 1) % 25 == 0:
                 print('Performing classification experiment')
-                perform_classification_experiments(sess_docCNN, model_output, indices_data_placeholder,
-                                                   keep_prob_placeholder, is_training_placeholder, word_to_index)
+                perform_trec_exp(sess_docCNN, model_output, indices_data_placeholder,
+                                 keep_prob_placeholder, is_training_placeholder, word_to_index)
 
             file_num += 1
             saver.save(sess_docCNN, os.path.join(checkpoint_path, 'gbw_model_latest'))
