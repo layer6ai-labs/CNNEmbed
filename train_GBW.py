@@ -37,7 +37,7 @@ def encode_text(sess, model_output, indices_data_placeholder, keep_prob_placehol
         line_tok = [ZERO_IND for _ in range(5 - len(line_tok))] + line_tok
 
     if doc_len is not None:
-        # pad or trucate to that length
+        # pad or truncate to that length
         if len(line_tok) > doc_len:
             line_tok = line_tok[:doc_len]
         elif len(line_tok) < doc_len:
@@ -141,7 +141,7 @@ def main(args):
                         'neg_words_num': neg_words_num, 'num_residual': num_residual, 'keep_prob': keep_prob,
                         'l2_coeff': l2_coeff}
 
-    max_doc_len = 45
+    max_doc_len = 50
     embed_dim = 300
     vector_up = np.load(os.path.join(args.cache_dir, 'vector_up.npy'))
     with open(os.path.join(args.cache_dir, 'word_to_index.pkl'), 'r') as f:
@@ -197,8 +197,12 @@ def main(args):
     ###########################################Training######################################
     # Initializing the variables.
 
+    use_restored_files = False
     if RESTORE:
-        saver.restore(sess_docCNN, os.path.join(checkpoint_path, 'gbw_model-0'))
+        saver.restore(sess_docCNN, os.path.join(checkpoint_path, 'gbw_model_latest'))
+        with open('./gbw_cache/files_order.pkl', 'r') as f:
+            indices_files = cPickle.load(f)
+            use_restored_files = True
     else:
         sess_docCNN.run(train_init_op_docCNN)
         sess_docCNN.run(assign_embedding_op)
@@ -206,18 +210,24 @@ def main(args):
     batch_target = np.hstack((np.full((batch_size, pos_words_num), 1), np.full((batch_size, neg_words_num), 0)))
     # doc_lengths = [15, 24, 32, 41, 47]
     doc_lengths = range(context_len, 50)
-    super_batch_size = 10000  # use the same doc len in a super batch
+    super_batch_size = 1000  # use the same doc len in a super batch
     placeholders = [indices_data_placeholder, indices_target_placeholder, target_place_holder,
                     keep_prob_placeholder, is_training_placeholder]
 
     iter = 0
     while iter < max_iter:
         file_num = 0
-        np.random.shuffle(indices_files)
+        if use_restored_files:
+            use_restored_files = False
+            file_num = 53
+        else:
+            np.random.shuffle(indices_files)
+
         with open(os.path.join(args.cache_dir, 'files_order.pkl'), 'w') as f:
             cPickle.dump(indices_files, f)
 
-        for tokenized_file in indices_files:
+        while file_num < len(indices_files):
+            tokenized_file = indices_files[file_num]
             train_indices = np.load(tokenized_file)
             np.random.shuffle(train_indices)
 
@@ -239,19 +249,20 @@ def main(args):
                         else:
                             end_ind = doc_len
 
-                        all_data.append(elem[:end_ind])
+                        all_data.append(elem[(end_ind-doc_len):end_ind])
                         pos_targets.append(elem[end_ind:end_ind+pos_words_num])
                         neg_samples = np.random.choice(VOCAB_SIZE, size=neg_words_num, replace=False)
-                        while elem[:end_ind+pos_words_num].intersection(set(neg_samples)):
+                        context_inds = set(elem[:end_ind+pos_words_num])
+                        while context_inds.intersection(set(neg_samples)):
                             neg_samples = np.random.choice(VOCAB_SIZE, size=neg_words_num, replace=False)
 
                         neg_targets.append(neg_samples)
 
-                    if len(all_data) == batch_size or j == len(curr_train_inds) - 1:
+                    if len(all_data) == batch_size or (j == len(curr_train_inds) - 1 and len(all_data) > 0):
                         data_inds = np.array(all_data)
                         target_inds = np.concatenate((np.array(pos_targets), np.array(neg_targets)), axis=1)
-                        training_pass(sess_docCNN, train_op, data_inds, target_inds, batch_target, placeholders,
-                                      keep_prob, True)
+                        training_pass(sess_docCNN, train_op, data_inds, target_inds,
+                                      batch_target[:target_inds.shape[0], :], placeholders, keep_prob, True)
 
                         all_data = []
                         pos_targets = []
@@ -301,10 +312,10 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', default=100, type=int, help='Batch size.')
     parser.add_argument('--num-filters', type=int, default=900, help='Number of convolutional filters.')
     parser.add_argument('--filter-size', type=int, default=5, help='The size of the convolutional filters.')
-    parser.add_argument('--num-layers', type=int, default=8,
+    parser.add_argument('--num-layers', type=int, default=10,
                         help='Number of layers, including the last fully-connected layer.')
     parser.add_argument('--num-positive-words', type=int, default=5, help='Number of next words to predict.')
-    parser.add_argument('--num-negative-words', type=int, default=10, help='Number of negative samples.')
+    parser.add_argument('--num-negative-words', type=int, default=30, help='Number of negative samples.')
     parser.add_argument('--num-residual', type=int, default=1, help='Number of layers to skip in residual connections.')
     parser.add_argument('--dropout-keep-prob', type=float, default=0.8, help='The dropout keep prob.')
     parser.add_argument('--l2-coeff', type=float, default=0., help='The weight decay coefficient (l2).')
